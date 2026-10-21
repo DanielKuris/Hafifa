@@ -1,5 +1,3 @@
-.env
-
 __pycache__/
 *.py[cod]
 .venv/
@@ -10,3 +8,5 @@ output/
 .vscode/
 
 *.log
+
+.ruff_cache/

@@ -2,11 +2,11 @@ import asyncio
 
 from playwright.async_api import async_playwright
 
-from browser_manager import initialize_browser
-from logger import get_logger
-from output_manager import OutputManager
-from url_input_reader import iter_urls
-from worker_manager import queue_and_process_urls_with_workers
+from config.logger import get_logger
+from src.browser_manager import initialize_browser
+from src.output_manager import OutputManager
+from src.url_input_reader import iter_urls
+from src.worker_manager import queue_and_process_urls_with_workers
 
 logger = get_logger(__name__)
 

@@ -5,20 +5,20 @@ from typing import TYPE_CHECKING, TypeVar
 
 from playwright.async_api import Browser, BrowserContext, Page, Request
 
-from browser_manager import initialize_page
-from logger import get_logger
-from models import (
+from config.logger import get_logger
+from Models.models import (
     OperationResult,
     PageData,
     PageDataScrapeOperationResult,
     ScreenshotData,
     ScreenshotOperationResult,
 )
+from src.browser_manager import initialize_page
 
 R = TypeVar("R", bound=OperationResult)
 
 if TYPE_CHECKING:
-    from output_manager import OutputManager
+    from src.output_manager import OutputManager
 
 logger = get_logger(__name__)
 
@@ -52,6 +52,7 @@ def create_failed_result(
     url: str,
     error: Exception,
 ) -> R:
+
     return result_type(
         url=url,
         success=False,
@@ -63,6 +64,7 @@ async def get_page_data(
     page: Page,
     resources: set[str],
 ) -> PageData:
+
     return PageData(
         title=await page.title(),
         html=await page.content(),
@@ -163,8 +165,8 @@ async def process_url_and_save_results(
     context = None
 
     try:
-        context, page, resources = (
-            await initialize_page_and_track_requested_urls(browser)
+        context, page, resources = await initialize_page_and_track_requested_urls(
+            browser
         )
 
         await navigate_to_url(page, url)

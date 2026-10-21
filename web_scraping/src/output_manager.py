@@ -1,10 +1,9 @@
-
 import base64
 import json
 import shutil
 from pathlib import Path
 
-from models import (
+from Models.models import (
     PageDataScrapeOperationResult,
     ScreenshotOperationResult,
 )
@@ -22,9 +21,11 @@ class OutputManager:
     def create_url_directory(self, index: int) -> Path:
         url_directory = self.output_directory / f"url_{index}"
         url_directory.mkdir(parents=True, exist_ok=True)
+
         return url_directory
 
     def get_screenshot_path(self, output_directory: Path) -> Path:
+
         return output_directory / "screenshot.png"
 
     def save_results(
@@ -58,7 +59,6 @@ class OutputManager:
             json.dumps(content, ensure_ascii=False),
             encoding="utf-8",
         )
-
 
     @staticmethod
     def _encode_screenshot(

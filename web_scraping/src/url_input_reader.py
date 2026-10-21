@@ -3,17 +3,17 @@ from collections.abc import Iterator
 from pathlib import Path
 from urllib.parse import urlparse
 
-from config import INPUT_FILE
+from config.settings import settings
 
 
 def extract_url(line: str) -> str:
     markdown_match = re.search(
-        r"\[[^\]]*\]\((https?://[^)\s]+)\)",
+        r"\[([^\]]+)\]\((https?://[^)\s]+)\)",
         line,
     )
 
     if markdown_match:
-        return markdown_match.group(1)
+        return markdown_match.group(2)
 
     plain_match = re.search(r"https?://\S+", line)
 
@@ -26,20 +26,18 @@ def extract_url(line: str) -> str:
 def validate_url(url: str) -> str:
     parsed = urlparse(url)
 
-    if (
-        parsed.scheme not in {"http", "https"}
-        or not parsed.hostname
-    ):
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise ValueError(f"Invalid URL: {url!r}")
 
     return url
 
 
 def extract_and_validate_url(line: str) -> str:
+
     return validate_url(extract_url(line))
 
 
-def iter_urls(path: Path = INPUT_FILE) -> Iterator[str]:
+def iter_urls(path: Path = settings.INPUT_FILE) -> Iterator[str]:
     with path.open("r", encoding="utf-8") as file:
         for line_number, line in enumerate(file, start=1):
             line = line.strip()
@@ -51,6 +49,5 @@ def iter_urls(path: Path = INPUT_FILE) -> Iterator[str]:
                 yield extract_and_validate_url(line)
             except ValueError as exc:
                 raise ValueError(
-                    f"Invalid input on line {line_number} "
-                    f"of {path.name}: {line!r}"
+                    f"Invalid input on line {line_number} of {path.name}: {line!r}"
                 ) from exc
