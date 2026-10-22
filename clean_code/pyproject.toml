@@ -1,0 +1,12 @@
+[project]
+name = "mp3-music-player"
+version = "0.1.0"
+requires-python = "==3.14.5"
+dependencies = [
+    "mutagen==1.48.1",
+    "pygame-ce==2.5.8",
+    "pydantic-settings==2.11.0",
+]
+
+[tool.ruff]
+line-length = 88
