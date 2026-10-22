@@ -1,0 +1,9 @@
+[project]
+name = "threading-multiprocessing"
+version = "0.1.0"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "pandas>=3.0.6",
+    "pydantic-settings>=2.16.1",
+    "yfinance>=1.7.0",
+]
