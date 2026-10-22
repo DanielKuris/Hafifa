@@ -57,6 +57,7 @@ def stock_fetch_result_to_row(
         )
 
     row["hour"] = result.hour.isoformat()
+    row["success"] = bool(result.success)
     row["error"] = result.error or ""
 
     return row

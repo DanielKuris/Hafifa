@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from config.settings import settings
 from config.logger import get_logger
+from config.settings import settings
 from src.data.csv_writer import write_dataframe_to_csv
 
 logger = get_logger(__name__)
