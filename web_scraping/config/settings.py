@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_PAGES: int = 5
     NAVIGATION_TIMEOUT_MS: int = 30000
 
-    INPUT_FILE: Path = Path("src/urls.input")
+    INPUT_FILE: Path = Path("src/input/urls.input")
     OUTPUT_DIR: Path = Path("output")
 
     BROWSER_CHANNEL: str = "chrome"
