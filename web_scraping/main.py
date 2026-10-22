@@ -15,6 +15,7 @@ async def main() -> None:
     logger.info("Starting scraper")
 
     try:
+        
         output_manager = OutputManager()
 
         async with async_playwright() as playwright:
