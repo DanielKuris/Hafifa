@@ -4,3 +4,7 @@
 /src/__pycache__/
 out/
 src/business_logic/__pycache__/
+__pycache__/
+*.py[cod]
+
+threading_multiprocessing/out/
