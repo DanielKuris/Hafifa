@@ -3,14 +3,14 @@ import json
 import shutil
 from pathlib import Path
 
-from Models.models import (
-    PageDataScrapeOperationResult,
-    ScreenshotOperationResult,
+from models.models import (
+    PageDataResult,
+    ScreenshotResult,
 )
 
 
 class OutputManager:
-    def __init__(self, output_directory: Path = Path("output")) -> None:
+    def __init__(self, output_directory: Path) -> None:
         self.output_directory = output_directory
 
         if self.output_directory.exists():
@@ -31,8 +31,8 @@ class OutputManager:
     def save_results(
         self,
         output_directory: Path,
-        page_result: PageDataScrapeOperationResult,
-        screenshot_result: ScreenshotOperationResult,
+        page_result: PageDataResult,
+        screenshot_result: ScreenshotResult,
     ) -> None:
         output_directory.mkdir(parents=True, exist_ok=True)
 
@@ -62,7 +62,7 @@ class OutputManager:
 
     @staticmethod
     def _encode_screenshot(
-        result: ScreenshotOperationResult,
+        result: ScreenshotResult,
     ) -> str | None:
         if not result.success or result.data is None:
             return None

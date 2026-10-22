@@ -26,10 +26,10 @@ class ScreenshotData:
 
 
 @dataclass
-class PageDataScrapeOperationResult(OperationResult[PageData]):
+class PageDataResult(OperationResult[PageData]):
     pass
 
 
 @dataclass
-class ScreenshotOperationResult(OperationResult[ScreenshotData]):
+class ScreenshotResult(OperationResult[ScreenshotData]):
     pass

@@ -10,3 +10,5 @@ output/
 *.log
 
 .ruff_cache/
+
+config/.env

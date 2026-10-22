@@ -13,60 +13,37 @@ if TYPE_CHECKING:
     from src.output_manager import OutputManager
 
 
-async def process_queue_with_workers(
-    queue: asyncio.Queue[tuple[int, str] | None],
+async def process_url_with_semaphore(
+    semaphore: asyncio.Semaphore,
     browser: Browser,
+    index: int,
+    url: str,
     output_manager: OutputManager,
 ) -> None:
-    while True:
-        item = await queue.get()
-
-        try:
-            if item is None:
-                return
-
-            index, url = item
-            await process_url_and_save_results(
-                browser,
-                index,
-                url,
-                output_manager,
-            )
-        finally:
-            queue.task_done()
+    async with semaphore:
+        await process_url_and_save_results(
+            browser,
+            index,
+            url,
+            output_manager,
+        )
 
 
-async def enqueue_urls(
-    queue: asyncio.Queue[tuple[int, str] | None],
-    urls: Iterator[str],
-    worker_count: int,
-) -> None:
-    for index, url in enumerate(urls, start=1):
-        await queue.put((index, url))
-
-    for _ in range(worker_count):
-        await queue.put(None)
-
-
-async def queue_and_process_urls_with_workers(
+async def process_urls_with_semaphore(
     browser: Browser,
     urls: Iterator[str],
     output_manager: OutputManager,
 ) -> None:
-    queue: asyncio.Queue[tuple[int, str] | None] = asyncio.Queue(
-        maxsize=settings.MAX_CONCURRENT_PAGES
-    )
+    semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT_PAGES)
 
     async with asyncio.TaskGroup() as task_group:
-        for _ in range(settings.MAX_CONCURRENT_PAGES):
+        for index, url in enumerate(urls, start=1):
             task_group.create_task(
-                process_queue_with_workers(queue, browser, output_manager)
+                process_url_with_semaphore(
+                    semaphore,
+                    browser,
+                    index,
+                    url,
+                    output_manager,
+                )
             )
-
-        task_group.create_task(
-            enqueue_urls(
-                queue,
-                urls,
-                settings.MAX_CONCURRENT_PAGES,
-            )
-        )

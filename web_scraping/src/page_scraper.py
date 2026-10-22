@@ -4,14 +4,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar
 
 from playwright.async_api import Browser, BrowserContext, Page, Request
+from playwright.async_api import Error as PlaywrightError
 
 from config.logger import get_logger
-from Models.models import (
+from models.models import (
     OperationResult,
     PageData,
-    PageDataScrapeOperationResult,
+    PageDataResult,
     ScreenshotData,
-    ScreenshotOperationResult,
+    ScreenshotResult,
 )
 from src.browser_manager import initialize_page
 
@@ -76,21 +77,21 @@ async def get_page_data_operation_result(
     page: Page,
     url: str,
     resources: set[str],
-) -> PageDataScrapeOperationResult:
+) -> PageDataResult:
     try:
         data = await get_page_data(page, resources)
 
-        return PageDataScrapeOperationResult(
+        return PageDataResult(
             url=url,
             success=True,
             data=data,
         )
 
-    except Exception as exc:
-        logger.exception("Failed to collect page data for %s", url)
+    except PlaywrightError as exc:
+        logger.error(f"Playwright failed to collect page data for {url}")
 
         return create_failed_result(
-            PageDataScrapeOperationResult,
+            PageDataResult,
             url,
             exc,
         )
@@ -110,24 +111,24 @@ async def get_screenshot_operation_result(
     page: Page,
     url: str,
     screenshot_path: Path,
-) -> ScreenshotOperationResult:
+) -> ScreenshotResult:
 
     try:
         await get_screenshot(page, screenshot_path)
 
-        return ScreenshotOperationResult(
+        return ScreenshotResult(
             url=url,
             success=True,
             data=ScreenshotData(path=str(screenshot_path)),
         )
 
-    except Exception as exc:
+    except (PlaywrightError, OSError) as exc:
         screenshot_path.unlink(missing_ok=True)
 
-        logger.exception("Failed to capture screenshot for %s", url)
+        logger.error(f"Failed to capture screenshot for {url}")
 
         return create_failed_result(
-            ScreenshotOperationResult,
+            ScreenshotResult,
             url,
             exc,
         )
@@ -138,7 +139,7 @@ async def create_scrape_results(
     url: str,
     screenshot_path: Path,
     resources: set[str],
-) -> tuple[PageDataScrapeOperationResult, ScreenshotOperationResult]:
+) -> tuple[PageDataResult, ScreenshotResult]:
     page_result = await get_page_data_operation_result(
         page,
         url,
@@ -178,17 +179,17 @@ async def process_url_and_save_results(
             resources,
         )
 
-    except Exception as exc:
-        logger.exception("Failed to process %s", url)
+    except PlaywrightError as exc:
+        logger.error(f"Failed to process {url}")
 
         page_result = create_failed_result(
-            PageDataScrapeOperationResult,
+            PageDataResult,
             url,
             exc,
         )
 
         screenshot_result = create_failed_result(
-            ScreenshotOperationResult,
+            ScreenshotResult,
             url,
             exc,
         )
@@ -197,7 +198,7 @@ async def process_url_and_save_results(
         if context is not None:
             try:
                 await context.close()
-            except Exception:
-                logger.exception("Failed to close browser context for %s", url)
+            except PlaywrightError:
+                logger.error(f"Failed to close browser context for {url}")
 
     output_manager.save_results(output_directory, page_result, screenshot_result)
