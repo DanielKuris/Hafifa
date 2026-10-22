@@ -4,9 +4,9 @@ from datetime import UTC, datetime, timedelta
 import pandas as pd
 import yfinance as yf
 
-from config import settings
+from config.settings import settings
+from config.logger import get_logger
 from src.models.stock_data import StockData, StockFetchResult
-from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -26,10 +26,10 @@ def get_stock_price(
 
     return ticker.history(
         start=target_time
-        - timedelta(minutes=settings.stock_price_lookback_minutes),
+        - timedelta(minutes=settings.STOCK_PRICE_LOOKBACK_MINUTES),
         end=target_time
-        + timedelta(minutes=settings.stock_price_forward_minutes),
-        interval=settings.stock_price_interval,
+        + timedelta(minutes=settings.STOCK_PRICE_FORWARD_MINUTES),
+        interval=settings.STOCK_PRICE_INTERVAL,
     )
 
 
@@ -86,6 +86,7 @@ def fetch_stock_data(
             hour=hour,
             stock_type=stock_type,
             current_price=current_price,
+            percentage_change=None,
         )
 
         logger.info("Fetched %s price at %s", stock_type, hour)

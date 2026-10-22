@@ -7,6 +7,7 @@ class StockData:
     hour: datetime
     stock_type: str
     current_price: float
+    percentage_change: float | None = None
 
 
 @dataclass
@@ -15,5 +16,4 @@ class StockFetchResult:
     stock_type: str
     success: bool
     result: StockData | None = None
-    percentage_change: float | None = None
     error: str | None = None
