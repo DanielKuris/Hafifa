@@ -5,40 +5,45 @@ from concurrent.futures import (
     ThreadPoolExecutor,
     wait,
 )
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from config.logger import get_logger
 from config.settings import settings
-from src.business_logic.stock_price_fetcher import fetch_stock_data
-from src.data.csv_writer import write_stock_fetch_results_to_csv
-from src.models.stock_data import StockFetchResult
+from src.business_logic.stock_price_fetcher import fetch_stock_data_for_a_day
+from src.data.csv_writer import write_stock_data_to_csv
+from src.models.stock_data import StockData
 
 logger = get_logger(__name__)
 
-StockPriceTask = tuple[str, datetime]
+StockPriceTask = tuple[str, list[datetime]]
 
 
-def create_stock_price_tasks(
-    stock_timestamps: dict[str, list[datetime]],
+def create_stock_price_tasks_per_day(
+    stock_timestamps: dict[str, dict[date, list[datetime]]],
 ) -> Iterator[StockPriceTask]:
-    for stock_type, hours in stock_timestamps.items():
-        for hour in hours:
-            yield stock_type, hour
+    for stock_type, timestamps_by_day in stock_timestamps.items():
+        for timestamps in timestamps_by_day.values():
+            yield stock_type, timestamps
 
 
 def _submit_next_task(
     executor: ThreadPoolExecutor,
     tasks: Iterator[StockPriceTask],
-    pending: set[Future[StockFetchResult]],
+    pending: set[Future[list[StockData]]],
 ) -> bool:
     try:
-        stock_type, hour = next(tasks)
+        stock_type, requested_timestamps = next(tasks)
     except StopIteration:
-        
         return False
 
-    pending.add(executor.submit(fetch_stock_data, stock_type, hour))
+    pending.add(
+        executor.submit(
+            fetch_stock_data_for_a_day,
+            stock_type,
+            requested_timestamps,
+        )
+    )
 
     return True
 
@@ -46,8 +51,8 @@ def _submit_next_task(
 def _iter_completed_stock_prices(
     executor: ThreadPoolExecutor,
     tasks: Iterator[StockPriceTask],
-) -> Iterator[StockFetchResult]:
-    pending: set[Future[StockFetchResult]] = set()
+) -> Iterator[StockData]:
+    pending: set[Future[list[StockData]]] = set()
 
     for _ in range(settings.MAX_WORKERS):
         if not _submit_next_task(executor, tasks, pending):
@@ -56,23 +61,26 @@ def _iter_completed_stock_prices(
     while pending:
         completed, pending = wait(
             pending,
-            
             return_when=FIRST_COMPLETED,
         )
 
         for future in completed:
-            yield future.result()
+            try:
+                yield from future.result()
+            except (ValueError, TypeError, KeyError, OSError) as error:
+                logger.error(f"Failed to process stock price task: {error}")
+
             _submit_next_task(executor, tasks, pending)
 
 
 def write_stock_prices_concurrently(
-    stock_timestamps: dict[str, list[datetime]],
+    stock_timestamps: dict[str, dict[date, list[datetime]]],
     destination_file: Path,
 ) -> None:
-    tasks = create_stock_price_tasks(stock_timestamps)
+    tasks = create_stock_price_tasks_per_day(stock_timestamps)
 
     with ThreadPoolExecutor(
         max_workers=settings.MAX_WORKERS,
     ) as executor:
         results = _iter_completed_stock_prices(executor, tasks)
-        write_stock_fetch_results_to_csv(results, destination_file)
+        write_stock_data_to_csv(results, destination_file)
