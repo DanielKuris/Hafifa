@@ -53,7 +53,6 @@ def create_failed_result(
     url: str,
     error: Exception,
 ) -> R:
-
     return result_type(
         url=url,
         success=False,
@@ -65,7 +64,6 @@ async def get_page_data(
     page: Page,
     resources: set[str],
 ) -> PageData:
-
     return PageData(
         title=await page.title(),
         html=await page.content(),

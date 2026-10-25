@@ -9,7 +9,6 @@ from config.settings import settings
 
 
 async def initialize_browser(playwright: Playwright) -> Browser:
-
     return await playwright.chromium.launch(
         channel=settings.BROWSER_CHANNEL,
         headless=settings.HEADLESS,

@@ -33,7 +33,6 @@ def validate_url(url: str) -> str:
 
 
 def extract_and_validate_url(line: str) -> str:
-
     return validate_url(extract_url(line))
 
 

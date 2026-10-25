@@ -1,14 +1,15 @@
 __pycache__/
 *.py[cod]
+
 .venv/
 venv/
 
-output/
-
+.ruff_cache/
 .vscode/
+
+out/
+output/
 
 *.log
 
-.ruff_cache/
-
-config/.env
+.env

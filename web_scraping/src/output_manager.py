@@ -25,7 +25,6 @@ class OutputManager:
         return url_directory
 
     def get_screenshot_path(self, output_directory: Path) -> Path:
-
         return output_directory / "screenshot.png"
 
     def save_results(
