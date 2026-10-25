@@ -6,7 +6,7 @@ from typing import TextIO
 
 import pandas as pd
 
-from src.models.stock_data import StockData, StockFetchResult
+from src.models.stock_data import StockData
 
 
 def write_dataframe_to_csv(
@@ -17,54 +17,30 @@ def write_dataframe_to_csv(
     dataframe.to_csv(destination_file, index=False)
 
 
-def create_stock_fetch_csv_writer(
+def create_stock_data_csv_writer(
     file: TextIO,
 ) -> csv.DictWriter:
     writer = csv.DictWriter(
         file,
-        fieldnames=[
-            field.name
-            for field in fields(StockFetchResult)
-            if field.name != "result"
-        ]
-        + [
-            field.name
-            for field in fields(StockData)
-            if field.name not in {"hour", "stock_type"}
-        ],
+        fieldnames=[field.name for field in fields(StockData)],
     )
     writer.writeheader()
 
     return writer
 
 
-def stock_fetch_result_to_row(
-    result: StockFetchResult,
-) -> dict[str, str | float | bool | None]:
-    row = {
-        field.name: getattr(result, field.name)
-        for field in fields(StockFetchResult)
-        if field.name != "result"
-    }
+def stock_data_to_row(
+    stock_data: StockData,
+) -> dict[str, str | float]:
+    row = {field.name: getattr(stock_data, field.name) for field in fields(StockData)}
 
-    if result.result is not None:
-        row.update(
-            {
-                field.name: getattr(result.result, field.name)
-                for field in fields(StockData)
-                if field.name not in {"hour", "stock_type"}
-            }
-        )
-
-    row["hour"] = result.hour.isoformat()
-    row["success"] = bool(result.success)
-    row["error"] = result.error or ""
+    row["hour"] = stock_data.hour.isoformat()
 
     return row
 
 
-def write_stock_fetch_results_to_csv(
-    results: Iterable[StockFetchResult],
+def write_stock_data_to_csv(
+    stock_data_items: Iterable[StockData],
     destination_file: Path,
 ) -> None:
     destination_file.parent.mkdir(parents=True, exist_ok=True)
@@ -74,8 +50,8 @@ def write_stock_fetch_results_to_csv(
         newline="",
         encoding="utf-8",
     ) as file:
-        writer = create_stock_fetch_csv_writer(file)
+        writer = create_stock_data_csv_writer(file)
 
-        for result in results:
-            writer.writerow(stock_fetch_result_to_row(result))
+        for stock_data in stock_data_items:
+            writer.writerow(stock_data_to_row(stock_data))
             file.flush()

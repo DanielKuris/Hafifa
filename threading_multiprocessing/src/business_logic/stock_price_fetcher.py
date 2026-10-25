@@ -24,16 +24,11 @@ def get_stock_prices(
     ticker = yf.Ticker(stock_type)
 
     target_times = [
-        convert_datetime_to_utc(timestamp)
-        for timestamp in requested_timestamps
+        convert_datetime_to_utc(timestamp) for timestamp in requested_timestamps
     ]
 
-    start = min(target_times) - timedelta(
-        hours=settings.STOCK_PRICE_LOOKBACK_HOURS
-    )
-    end = max(target_times) + timedelta(
-        hours=settings.STOCK_PRICE_FORWARD_HOURS
-    )
+    start = min(target_times) - timedelta(hours=settings.STOCK_PRICE_LOOKBACK_HOURS)
+    end = max(target_times) + timedelta(hours=settings.STOCK_PRICE_FORWARD_HOURS)
 
     return ticker.history(
         start=start,
@@ -42,7 +37,14 @@ def get_stock_prices(
     )
 
 
-def convert_price_index_to_utc(prices: pd.DataFrame) -> pd.DataFrame:
+def convert_price_index_to_utc(
+    prices: pd.DataFrame,
+) -> pd.DataFrame:
+    if prices.empty:
+        logger.error("No prices returned to convert to UTC")
+
+        return prices
+
     if prices.index.tz is None:
         prices.index = prices.index.tz_localize("UTC")
     else:
@@ -57,9 +59,7 @@ def extract_current_price(
     stock_type: str,
 ) -> float | None:
     if prices.empty:
-        logger.error(
-            f"No prices returned for {stock_type} at {original_timestamp}"
-        )
+        logger.error(f"No prices returned for {stock_type} at {original_timestamp}")
 
         return None
 
@@ -72,8 +72,7 @@ def extract_current_price(
 
     if available_prices.empty:
         logger.error(
-            f"No price available at or before {original_timestamp} "
-            f"for {stock_type}"
+            f"No price available at or before {original_timestamp} for {stock_type}"
         )
 
         return None

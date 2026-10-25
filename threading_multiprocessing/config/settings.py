@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     STOCK_PRICE_LOOKBACK_HOURS: int = 1
     STOCK_PRICE_FORWARD_HOURS: int = 1
+    PREVIOUS_PRICE_MAX_AGE_MINUTES: int = 90
     STOCK_PRICE_INTERVAL: str = "1h"
     PERCENTAGE_DENOMINATOR: float = 100.0
     MAX_WORKERS: int = 5
@@ -14,9 +15,11 @@ class Settings(BaseSettings):
     TIMESTAMPS_FILE: Path = Path("src/input/bitcoin_dates.txt")
     OUTPUT_DIRECTORY: Path = Path("out")
     INPUT_DIRECTORY: Path = Path("src/input")
+    LOG_DIRECTORY: Path = OUTPUT_DIRECTORY / "log"
+    LOG_FILE_NAME: str = "application.log"
     TIMESTAMP_FILE_SUFFIX: str = "_dates.txt"
     YFINANCE_LOG_LEVEL: str = "CRITICAL"
-    
+
     model_config = SettingsConfigDict(
         env_file="config/.env",
         extra="ignore",

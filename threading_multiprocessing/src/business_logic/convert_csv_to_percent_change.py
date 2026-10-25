@@ -9,118 +9,108 @@ from src.data.csv_writer import write_dataframe_to_csv
 logger = get_logger(__name__)
 
 
-def read_stock_prices_from_csv(
-    source_file: Path,
-) -> pd.DataFrame:
-    
+def read_stock_prices_from_csv(source_file: Path) -> pd.DataFrame:
     return pd.read_csv(source_file, parse_dates=["hour"])
 
 
-def calculate_percentage_change(
-    current_price: float,
-    previous_price: float,
-) -> float:
-    if previous_price == 0:
-        raise ValueError("Previous price cannot be zero")
-
-    return (
-        (current_price - previous_price)
-        / previous_price
-        * settings.PERCENTAGE_DENOMINATOR
-    )
-
-
-def filter_successful_fetches(
-    stock_prices: pd.DataFrame,
-) -> pd.DataFrame:
-    successful_fetches = stock_prices.loc[
-        stock_prices["success"]
-    ].copy()
-
-    successful_fetches["hour"] = pd.to_datetime(
-        successful_fetches["hour"],
+def sort_stock_prices_by_hour(stock_prices: pd.DataFrame) -> pd.DataFrame:
+    stock_prices = stock_prices.copy()
+    stock_prices["hour"] = pd.to_datetime(
+        stock_prices["hour"],
         utc=True,
     )
 
-    return successful_fetches
+    return stock_prices.sort_values(["hour", "stock_type"])
 
 
-def get_previous_price(
-    successful_prices: pd.DataFrame,
-    stock_type: str,
-    hour: pd.Timestamp,
-) -> float | None:
-    previous_key = (
-        stock_type,
-        hour - pd.Timedelta(hours=1),
+def find_previous_prices(stock_prices: pd.DataFrame) -> pd.DataFrame:
+    current_prices = stock_prices.sort_values("hour").copy()
+    previous_prices = stock_prices[["hour", "stock_type", "current_price"]].copy()
+
+    previous_prices = previous_prices.rename(
+        columns={
+            "hour": "previous_hour",
+            "current_price": "previous_price",
+        }
     )
 
-    if previous_key not in successful_prices.index:
-        
-        return None
-
-    return float(
-        successful_prices.loc[previous_key, "current_price"]
+    current_prices = pd.merge_asof(
+        current_prices,
+        previous_prices.sort_values("previous_hour"),
+        left_on="hour",
+        right_on="previous_hour",
+        by="stock_type",
+        direction="backward",
+        tolerance=pd.Timedelta(minutes=settings.PREVIOUS_PRICE_MAX_AGE_MINUTES),
+        allow_exact_matches=False,
     )
 
+    return current_prices
 
 
-
-def convert_df_to_percent_change(
+def remove_invalid_previous_prices(
     stock_prices: pd.DataFrame,
 ) -> pd.DataFrame:
-    successful_prices = filter_successful_fetches(stock_prices)
-    successful_prices = successful_prices.set_index(
-        ["stock_type", "hour"]
-    )
+    missing_previous_prices = stock_prices["previous_price"].isna()
+    zero_previous_prices = stock_prices["previous_price"] == 0
 
-    results: list[dict[str, object]] = []
-
-    for (stock_type, hour), row in successful_prices.iterrows():
-        previous_price = get_previous_price(
-            successful_prices,
-            stock_type,
-            hour,
+    for _, row in stock_prices[
+        missing_previous_prices | zero_previous_prices
+    ].iterrows():
+        reason = (
+            "no previous price within the allowed time window"
+            if pd.isna(row["previous_price"])
+            else "previous price is zero"
         )
 
-        if previous_price is None:
-            continue
-
-        if previous_price == 0:
-            logger.warning(
-                "Cannot calculate percentage change for %s at %s: "
-                "previous price is zero",
-                stock_type,
-                hour,
-            )
-            continue
-
-        results.append(
-            {
-                "hour": hour,
-                "stock_type": stock_type,
-                "percentage_change": calculate_percentage_change(
-                    float(row["current_price"]),
-                    previous_price,
-                ),
-            }
+        logger.error(
+            f"Cannot calculate percentage change for {row['stock_type']} "
+            f"at {row['hour']}: {reason}"
         )
 
-    return pd.DataFrame(
-        results,
-        columns=["hour", "stock_type", "percentage_change"],
+    return stock_prices[~missing_previous_prices & ~zero_previous_prices].copy()
+
+
+def calculate_percentage_changes(
+    stock_prices: pd.DataFrame,
+) -> pd.DataFrame:
+    stock_prices["percentage_change"] = (
+        (stock_prices["current_price"] - stock_prices["previous_price"])
+        / stock_prices["previous_price"]
+        * settings.PERCENTAGE_DENOMINATOR
     )
 
+    return stock_prices[["hour", "stock_type", "percentage_change"]]
+
+
+def sort_by_stock_type_and_hour(
+    percentage_changes: pd.DataFrame,
+) -> pd.DataFrame:
+    return percentage_changes.sort_values(
+        ["stock_type", "hour"],
+        ascending=[True, False],
+    ).reset_index(drop=True)
+
+
+def convert_df_to_sorted_percent_change(
+    stock_prices: pd.DataFrame,
+) -> pd.DataFrame:
+    stock_prices = sort_stock_prices_by_hour(stock_prices)
+    stock_prices = find_previous_prices(stock_prices)
+    stock_prices = remove_invalid_previous_prices(stock_prices)
+
+    percentage_changes = calculate_percentage_changes(stock_prices)
+    return sort_by_stock_type_and_hour(percentage_changes)
 
 
 def convert_csv_to_percent_change(
     source_file: Path,
     destination_file: Path,
 ) -> None:
-    logger.info("Reading stock prices from %s", source_file)
+    logger.info(f"Reading stock prices from {source_file}")
     stock_prices = read_stock_prices_from_csv(source_file)
 
-    percentage_changes = convert_df_to_percent_change(stock_prices)
+    percentage_changes = convert_df_to_sorted_percent_change(stock_prices)
 
     write_dataframe_to_csv(percentage_changes, destination_file)
-    logger.info("Wrote percentage changes to %s", destination_file)
+    logger.info(f"Wrote percentage changes to {destination_file}")
