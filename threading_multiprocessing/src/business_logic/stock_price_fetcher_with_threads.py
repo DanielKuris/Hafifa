@@ -5,13 +5,14 @@ from concurrent.futures import (
     ThreadPoolExecutor,
     wait,
 )
+from dataclasses import asdict
 from datetime import date, datetime
-from pathlib import Path
+
+import pandas as pd
 
 from config.logger import get_logger
 from config.settings import settings
 from src.business_logic.stock_price_fetcher import fetch_stock_data_for_a_day
-from src.data.csv_writer import write_stock_data_to_csv
 from src.models.stock_data import StockData
 
 logger = get_logger(__name__)
@@ -37,13 +38,12 @@ def _submit_next_task(
     except StopIteration:
         return False
 
-    pending.add(
-        executor.submit(
-            fetch_stock_data_for_a_day,
-            stock_type,
-            requested_timestamps,
-        )
+    future = executor.submit(
+        fetch_stock_data_for_a_day,
+        stock_type,
+        requested_timestamps,
     )
+    pending.add(future)
 
     return True
 
@@ -68,19 +68,23 @@ def _iter_completed_stock_prices(
             try:
                 yield from future.result()
             except (ValueError, TypeError, KeyError, OSError) as error:
-                logger.error(f"Failed to process stock price task: {error}")
+                logger.error(f"Failed to fetch stock prices: {error}")
 
             _submit_next_task(executor, tasks, pending)
 
 
-def write_stock_prices_concurrently(
+def fetch_stock_prices_concurrently(
     stock_timestamps: dict[str, dict[date, list[datetime]]],
-    destination_file: Path,
-) -> None:
+) -> pd.DataFrame:
     tasks = create_stock_price_tasks_per_day(stock_timestamps)
 
     with ThreadPoolExecutor(
         max_workers=settings.MAX_WORKERS,
     ) as executor:
-        results = _iter_completed_stock_prices(executor, tasks)
-        write_stock_data_to_csv(results, destination_file)
+        stock_prices = list(
+            _iter_completed_stock_prices(executor, tasks)
+        )
+
+    return pd.DataFrame(
+        [asdict(stock_price) for stock_price in stock_prices]
+    )
