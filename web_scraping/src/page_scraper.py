@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeVar
+from typing import TypeVar
 
 from playwright.async_api import Browser, BrowserContext, Page, Request
 from playwright.async_api import Error as PlaywrightError
@@ -15,11 +15,11 @@ from models.models import (
     ScreenshotResult,
 )
 from src.browser_manager import initialize_page
+from src.output_manager import ScrapeOutputWriter
 
-R = TypeVar("R", bound=OperationResult)
+T = TypeVar("T", bound=OperationResult)
 
-if TYPE_CHECKING:
-    from src.output_manager import OutputManager
+    
 
 logger = get_logger(__name__)
 
@@ -49,10 +49,10 @@ async def initialize_page_and_track_requested_urls(
 
 
 def create_failed_result(
-    result_type: type[R],
+    result_type: type[T],
     url: str,
     error: Exception,
-) -> R:
+) -> T:
     return result_type(
         url=url,
         success=False,
@@ -157,7 +157,7 @@ async def process_url_and_save_results(
     browser: Browser,
     index: int,
     url: str,
-    output_manager: OutputManager,
+    output_manager: ScrapeOutputWriter,
 ) -> None:
     output_directory = output_manager.create_url_directory(index)
     screenshot_path = output_manager.get_screenshot_path(output_directory)

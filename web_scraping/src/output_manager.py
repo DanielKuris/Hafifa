@@ -9,7 +9,7 @@ from models.models import (
 )
 
 
-class OutputManager:
+class ScrapeOutputWriter:
     def __init__(self, output_directory: Path) -> None:
         self.output_directory = output_directory
 

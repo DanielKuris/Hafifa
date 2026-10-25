@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from src.output_manager import OutputManager
 
 
-async def process_url_with_semaphore(
+async def process_single_url(
     semaphore: asyncio.Semaphore,
     browser: Browser,
     index: int,
@@ -29,7 +29,7 @@ async def process_url_with_semaphore(
         )
 
 
-async def process_urls_with_semaphore(
+async def process_multiple_urls(
     browser: Browser,
     urls: Iterator[str],
     output_manager: OutputManager,
@@ -39,7 +39,7 @@ async def process_urls_with_semaphore(
     async with asyncio.TaskGroup() as task_group:
         for index, url in enumerate(urls, start=1):
             task_group.create_task(
-                process_url_with_semaphore(
+                process_single_url(
                     semaphore,
                     browser,
                     index,
