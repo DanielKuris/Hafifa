@@ -20,13 +20,10 @@ def convert_name_to_stock_type(name: str) -> str:
 
     return results[0]["symbol"]
 
+
 def get_timestamps_from_file(input_file: Path) -> list[datetime]:
     with input_file.open("r", encoding="utf-8") as file:
-        return [
-            datetime.fromisoformat(line.strip())
-            for line in file
-            if line.strip()
-        ]
+        return [datetime.fromisoformat(line.strip()) for line in file if line.strip()]
 
 
 def group_timestamps_by_day(
@@ -45,17 +42,11 @@ def get_timestamps_per_stock_per_day(
 ) -> dict[str, dict[date, list[datetime]]]:
     timestamps: dict[str, dict[date, list[datetime]]] = {}
 
-    for input_file in input_directory.glob(
-        f"*{settings.TIMESTAMP_FILE_SUFFIX}"
-    ):
-        stock_name = input_file.name.removesuffix(
-            settings.TIMESTAMP_FILE_SUFFIX
-        )
+    for input_file in input_directory.glob(f"*{settings.TIMESTAMP_FILE_SUFFIX}"):
+        stock_name = input_file.name.removesuffix(settings.TIMESTAMP_FILE_SUFFIX)
         stock_type = convert_name_to_stock_type(stock_name)
         stock_timestamps = get_timestamps_from_file(input_file)
 
-        timestamps[stock_type] = group_timestamps_by_day(
-            stock_timestamps
-        )
+        timestamps[stock_type] = group_timestamps_by_day(stock_timestamps)
 
     return timestamps
