@@ -2,7 +2,10 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.config.metrics import timed
 
+
+@timed
 def write_dataframe_to_csv(
     dataframe: pd.DataFrame,
     destination_file: Path,

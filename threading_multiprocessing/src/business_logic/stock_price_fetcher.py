@@ -3,8 +3,8 @@ from datetime import UTC, datetime, timedelta
 import pandas as pd
 import yfinance as yf
 
-from config.logger import get_logger
-from config.settings import settings
+from src.config.logger import get_logger
+from src.config.settings import settings
 from src.models.stock_data import StockData
 
 logger = get_logger(__name__)
@@ -27,8 +27,8 @@ def get_stock_prices(
         convert_datetime_to_utc(timestamp) for timestamp in requested_timestamps
     ]
 
-    start = min(target_times) - timedelta(hours=settings.STOCK_PRICE_LOOKBACK_HOURS)
-    end = max(target_times) + timedelta(hours=settings.STOCK_PRICE_FORWARD_HOURS)
+    start = min(target_times) - timedelta(hours=1)
+    end = max(target_times) + timedelta(hours=1)
 
     return ticker.history(
         start=start,
@@ -119,7 +119,7 @@ def fetch_stock_data_for_a_day(
 
         return [result for result in results if result is not None]
 
-    except (ValueError, TypeError, KeyError, OSError) as error:
+    except (ValueError, TypeError) as error:
         logger.error(f"Failed to fetch prices for {stock_type}: {error}")
 
         return []

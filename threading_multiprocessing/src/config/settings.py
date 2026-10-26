@@ -4,11 +4,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    STOCK_PRICE_LOOKBACK_HOURS: int = 1
-    STOCK_PRICE_FORWARD_HOURS: int = 1
     PREVIOUS_PRICE_MAX_AGE_MINUTES: int = 90
     STOCK_PRICE_INTERVAL: str = "1h"
-    PERCENTAGE_DENOMINATOR: float = 100.0
     MAX_WORKERS: int = 5
     DESTINATION_FILE_NAME: str = "percentage_changes.csv"
     TEMP_CSV_STOCK_PRICES_FILE: Path = Path("out/stock_prices.csv")
@@ -17,6 +14,7 @@ class Settings(BaseSettings):
     INPUT_DIRECTORY: Path = Path("src/input")
     LOG_DIRECTORY: Path = OUTPUT_DIRECTORY / "log"
     LOG_FILE_NAME: str = "application.log"
+    BOTTLENECK_DATA_FILE: Path = Path("out/bottleneck_data.log")
     TIMESTAMP_FILE_SUFFIX: str = "_dates.txt"
     YFINANCE_LOG_LEVEL: str = "CRITICAL"
 

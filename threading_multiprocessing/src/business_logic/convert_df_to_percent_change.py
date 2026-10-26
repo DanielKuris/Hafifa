@@ -1,7 +1,8 @@
 import pandas as pd
 
-from config.logger import get_logger
-from config.settings import settings
+from src.config.logger import get_logger
+from src.config.metrics import timed
+from src.config.settings import settings
 
 logger = get_logger(__name__)
 
@@ -71,12 +72,12 @@ def calculate_percentage_changes(
     stock_prices["percentage_change"] = (
         (stock_prices["current_price"] - stock_prices["previous_price"])
         / stock_prices["previous_price"]
-        * settings.PERCENTAGE_DENOMINATOR
+        * 100
     )
 
     return stock_prices[["hour", "stock_type", "percentage_change"]]
 
-
+@timed
 def convert_stock_prices_to_percent_change(
     stock_prices: pd.DataFrame,
 ) -> pd.DataFrame:

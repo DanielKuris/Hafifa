@@ -4,7 +4,7 @@ from pathlib import Path
 
 import yfinance as yf
 
-from config.settings import settings
+from src.config.settings import settings
 
 
 def convert_name_to_stock_type(name: str) -> str:
