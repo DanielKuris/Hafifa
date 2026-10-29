@@ -5,6 +5,7 @@ import yfinance as yf
 
 from src.config.logger import get_logger
 from src.config.settings import settings
+import time
 from src.models.stock_data import StockData
 
 logger = get_logger(__name__)
@@ -27,14 +28,37 @@ def get_stock_prices(
         convert_datetime_to_utc(timestamp) for timestamp in requested_timestamps
     ]
 
-    start = min(target_times) - timedelta(hours=1)
-    end = max(target_times) + timedelta(hours=1)
+    start = (min(target_times) - timedelta(hours=1)).replace(microsecond=0)
+    end = (max(target_times) + timedelta(hours=1)).replace(microsecond=0)
 
-    return ticker.history(
-        start=start,
-        end=end,
-        interval=settings.STOCK_PRICE_INTERVAL,
-    )
+    for attempt in range(2):
+        try:
+            prices = ticker.history(
+                start=start,
+                end=end,
+                interval=settings.STOCK_PRICE_INTERVAL,
+            )
+
+            if not prices.empty:
+                return prices
+
+            error_message = "Yahoo Finance returned an empty DataFrame"
+
+        except Exception as error:
+            error_message = f"{type(error).__name__}: {error}"
+
+        if attempt == 0:
+            logger.warning(
+                f"Attempt 1/2 failed to fetch {stock_type}: {error_message}. "
+                "Retrying in 1 second."
+            )
+            time.sleep(1)
+        else:
+            logger.error(
+                f"Attempt 2/2 failed to fetch {stock_type}: {error_message}"
+            )
+
+    return pd.DataFrame()
 
 
 def convert_price_index_to_utc(
@@ -53,6 +77,82 @@ def convert_price_index_to_utc(
     return prices
 
 
+def filter_prices_within_tolerance(
+    prices: pd.DataFrame,
+    target_time: datetime,
+) -> pd.Series:
+    tolerance = timedelta(minutes=settings.STOCK_PRICE_TOLERANCE_MINUTES)
+
+    return prices.loc[
+        (prices.index >= target_time - tolerance)
+        & (prices.index <= target_time + tolerance),
+        "Close",
+    ]
+
+
+def sort_prices_by_timestamp(
+    available_prices: pd.Series,
+) -> pd.Series:
+    if available_prices.index.is_monotonic_increasing:
+        return available_prices
+
+    return available_prices.sort_index()
+
+
+def find_insertion_index(
+    available_prices: pd.Series,
+    target_time: datetime,
+) -> int:
+    target_time = target_time.replace(microsecond=0)
+
+    return available_prices.index.searchsorted(target_time)
+
+
+def select_closest_price(
+    available_prices: pd.Series,
+    target_time: datetime,
+    insertion_index: int,
+) -> float:
+    if insertion_index == 0:
+        return float(available_prices.iloc[0])
+
+    if insertion_index == len(available_prices):
+        return float(available_prices.iloc[-1])
+
+    previous_time = available_prices.index[insertion_index - 1]
+    next_time = available_prices.index[insertion_index]
+
+    previous_difference = target_time - previous_time
+    next_difference = next_time - target_time
+
+    if previous_difference <= next_difference:
+        return float(available_prices.iloc[insertion_index - 1])
+
+    return float(available_prices.iloc[insertion_index])
+
+
+def find_closest_price(
+    available_prices: pd.Series,
+    target_time: datetime,
+) -> float | None:
+    if available_prices.empty:
+        return None
+
+    available_prices = sort_prices_by_timestamp(available_prices)
+    target_time = target_time.replace(microsecond=0)
+
+    insertion_index = find_insertion_index(
+        available_prices,
+        target_time,
+    )
+
+    return select_closest_price(
+        available_prices,
+        target_time,
+        insertion_index,
+    )
+
+
 def extract_current_price(
     prices: pd.DataFrame,
     original_timestamp: datetime,
@@ -65,19 +165,25 @@ def extract_current_price(
 
     target_time_utc = convert_datetime_to_utc(original_timestamp)
 
-    available_prices = prices.loc[
-        prices.index <= target_time_utc,
-        "Close",
-    ]
+    available_prices = filter_prices_within_tolerance(
+        prices,
+        target_time_utc,
+    )
 
-    if available_prices.empty:
+    current_price = find_closest_price(
+        available_prices,
+        target_time_utc,
+    )
+
+    if current_price is None:
         logger.error(
-            f"No price available at or before {original_timestamp} for {stock_type}"
+            f"No price found within {settings.STOCK_PRICE_TOLERANCE_MINUTES} "
+            f"minutes of {original_timestamp} for {stock_type}"
         )
 
         return None
 
-    return float(available_prices.iloc[-1])
+    return current_price
 
 
 def create_stock_data(
@@ -119,7 +225,7 @@ def fetch_stock_data_for_a_day(
 
         return [result for result in results if result is not None]
 
-    except (ValueError, TypeError) as error:
+    except TypeError as error:
         logger.error(f"Failed to fetch prices for {stock_type}: {error}")
 
         return []

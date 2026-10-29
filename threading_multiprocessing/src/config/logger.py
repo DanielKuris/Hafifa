@@ -29,7 +29,7 @@ def create_file_handler(formatter: logging.Formatter) -> logging.Handler:
     settings.LOG_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
     log_file = settings.LOG_DIRECTORY / settings.LOG_FILE_NAME
-    handler = logging.FileHandler(log_file, encoding="utf-8")
+    handler = logging.FileHandler(log_file, mode="w" ,encoding="utf-8")
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(formatter)
 

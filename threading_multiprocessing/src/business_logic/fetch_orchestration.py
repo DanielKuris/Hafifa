@@ -69,7 +69,7 @@ def submit_tasks_and_yield_stock_prices(
         for future in completed:
             try:
                 yield from future.result()
-            except (ValueError, TypeError, KeyError, OSError) as error:
+            except (ValueError, TypeError) as error:
                 logger.error(f"Failed to fetch stock prices: {error}")
 
             next_future = _submit_next_task(executor, tasks)

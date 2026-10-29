@@ -8,11 +8,14 @@ from src.config.logger import configure_logging, get_logger
 from src.config.settings import settings
 from src.data.csv_writer import write_dataframe_to_csv
 from src.data.input_reader import get_timestamps_per_stock_per_day
+import yfinance as yf
 
 
 def main() -> None:
     configure_logging()
     logger = get_logger(__name__)
+
+    yf.config.debug.hide_exceptions = False
 
     logger.info("Starting stock price processing")
 

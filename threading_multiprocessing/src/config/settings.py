@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     PREVIOUS_PRICE_MAX_AGE_MINUTES: int = 90
+    STOCK_PRICE_TOLERANCE_MINUTES: int = 30
     STOCK_PRICE_INTERVAL: str = "1h"
     MAX_WORKERS: int = 5
     DESTINATION_FILE_NAME: str = "percentage_changes.csv"

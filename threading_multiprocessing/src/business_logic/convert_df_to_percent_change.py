@@ -8,6 +8,10 @@ logger = get_logger(__name__)
 
 
 def convert_hour_column_to_utc(stock_prices: pd.DataFrame) -> pd.DataFrame:
+    if stock_prices.empty:
+        logger.error("No stock prices were fetched. Skipping percentage calculation.")
+
+        return
     stock_prices = stock_prices.copy()
     stock_prices["hour"] = pd.to_datetime(stock_prices["hour"], utc=True)
 
