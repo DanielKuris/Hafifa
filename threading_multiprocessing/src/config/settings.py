@@ -1,0 +1,28 @@
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    PREVIOUS_PRICE_MAX_AGE_MINUTES: int = 90
+    STOCK_PRICE_TOLERANCE_MINUTES: int = 30
+    STOCK_PRICE_INTERVAL: str = "1h"
+    MAX_WORKERS: int = 5
+    DESTINATION_FILE_NAME: str = "percentage_changes.csv"
+    TEMP_CSV_STOCK_PRICES_FILE: Path = Path("out/stock_prices.csv")
+    TIMESTAMPS_FILE: Path = Path("src/input/bitcoin_dates.txt")
+    OUTPUT_DIRECTORY: Path = Path("out")
+    INPUT_DIRECTORY: Path = Path("src/input")
+    LOG_DIRECTORY: Path = OUTPUT_DIRECTORY / "log"
+    LOG_FILE_NAME: str = "application.log"
+    BOTTLENECK_DATA_FILE: Path = Path("out/bottleneck_data.log")
+    TIMESTAMP_FILE_SUFFIX: str = "_dates.txt"
+    YFINANCE_LOG_LEVEL: str = "CRITICAL"
+
+    model_config = SettingsConfigDict(
+        env_file="config/.env",
+        extra="ignore",
+    )
+
+
+settings = Settings()
