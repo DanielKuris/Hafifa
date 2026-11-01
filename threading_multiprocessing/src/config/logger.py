@@ -1,10 +1,5 @@
 import logging
-
-from src.config.settings import settings
-
-
-def get_logger(name: str) -> logging.Logger:
-    return logging.getLogger(name)
+import sys
 
 
 class InfoOnlyFilter(logging.Filter):
@@ -12,46 +7,26 @@ class InfoOnlyFilter(logging.Filter):
         return record.levelno == logging.INFO
 
 
-def create_formatter() -> logging.Formatter:
-    return logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
-
-def create_console_handler(formatter: logging.Formatter) -> logging.Handler:
-    handler = logging.StreamHandler()
-    handler.setLevel(logging.INFO)
-    handler.addFilter(InfoOnlyFilter())
-    handler.setFormatter(formatter)
-
-    return handler
-
-
-def create_file_handler(formatter: logging.Formatter) -> logging.Handler:
-    settings.LOG_DIRECTORY.mkdir(parents=True, exist_ok=True)
-
-    log_file = settings.LOG_DIRECTORY / settings.LOG_FILE_NAME
-    handler = logging.FileHandler(log_file, mode="w" ,encoding="utf-8")
-    handler.setLevel(logging.DEBUG)
-    handler.setFormatter(formatter)
-
-    return handler
-
-
-def configure_yfinance_logging() -> None:
-    yfinance_logger = logging.getLogger("yfinance")
-    yfinance_logger.setLevel(getattr(logging, settings.YFINANCE_LOG_LEVEL.upper()))
-    yfinance_logger.propagate = True
+def get_logger(name: str) -> logging.Logger:
+    return logging.getLogger(name)
 
 
 def configure_logging() -> None:
-    formatter = create_formatter()
-
-    logging.basicConfig(
-        level=logging.DEBUG,
-        handlers=[
-            create_console_handler(formatter),
-            create_file_handler(formatter),
-        ],
-        force=True,
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
-    configure_yfinance_logging()
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.INFO)
+    stdout_handler.addFilter(InfoOnlyFilter())
+    stdout_handler.setFormatter(formatter)
+
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.setLevel(logging.WARNING)
+    stderr_handler.setFormatter(formatter)
+
+    logging.basicConfig(
+        level=logging.INFO,
+        handlers=[stdout_handler, stderr_handler],
+        force=True,
+    )

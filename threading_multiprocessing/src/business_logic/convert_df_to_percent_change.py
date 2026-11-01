@@ -1,7 +1,7 @@
 import pandas as pd
+from codetiming import Timer
 
 from src.config.logger import get_logger
-from src.config.metrics import timed
 from src.config.settings import settings
 
 logger = get_logger(__name__)
@@ -34,7 +34,7 @@ def find_previous_prices(stock_prices: pd.DataFrame) -> pd.DataFrame:
     stock_prices = stock_prices.sort_values(["stock_type", "hour"]).copy()
 
     grouped_prices = stock_prices.groupby("stock_type")
-    
+
     stock_prices["previous_price"] = grouped_prices["current_price"].shift(1)
     stock_prices["previous_hour"] = grouped_prices["hour"].shift(1)
 
@@ -81,7 +81,12 @@ def calculate_percentage_changes(
 
     return stock_prices[["hour", "stock_type", "percentage_change"]]
 
-@timed
+
+@Timer(
+    name="convert_stock_prices_to_percent_change",
+    text="{name} took {seconds:.2f} seconds",
+    logger=logger.info,
+)
 def convert_stock_prices_to_percent_change(
     stock_prices: pd.DataFrame,
 ) -> pd.DataFrame:

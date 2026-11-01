@@ -9,11 +9,11 @@ from dataclasses import asdict
 from datetime import date, datetime
 
 import pandas as pd
+from codetiming import Timer
 from tqdm import tqdm
 
 from src.business_logic.stock_price_fetcher import fetch_stock_data_for_a_day
 from src.config.logger import get_logger
-from src.config.metrics import timed
 from src.config.settings import settings
 from src.models.stock_data import StockData
 
@@ -78,13 +78,16 @@ def submit_tasks_and_yield_stock_prices(
                 pending.add(next_future)
 
 
-@timed
+@Timer(
+    name="fetch_stock_prices_concurrently",
+    text="{name} took {seconds:.2f} seconds",
+    logger=logger.info,
+)
 def fetch_stock_prices_concurrently(
     stock_timestamps: dict[str, dict[date, list[datetime]]],
 ) -> pd.DataFrame:
     total_tasks = sum(
-        len(timestamps_by_day)
-        for timestamps_by_day in stock_timestamps.values()
+        len(timestamps_by_day) for timestamps_by_day in stock_timestamps.values()
     )
     tasks = create_stock_price_tasks_per_day(stock_timestamps)
 
@@ -99,6 +102,4 @@ def fetch_stock_prices_concurrently(
             )
         )
 
-    return pd.DataFrame(
-        [asdict(stock_price) for stock_price in stock_prices]
-    )
+    return pd.DataFrame([asdict(stock_price) for stock_price in stock_prices])

@@ -1,3 +1,5 @@
+import yfinance as yf
+
 from src.business_logic.convert_df_to_percent_change import (
     convert_stock_prices_to_percent_change,
 )
@@ -8,7 +10,6 @@ from src.config.logger import configure_logging, get_logger
 from src.config.settings import settings
 from src.data.csv_writer import write_dataframe_to_csv
 from src.data.input_reader import get_timestamps_per_stock_per_day
-import yfinance as yf
 
 
 def main() -> None:

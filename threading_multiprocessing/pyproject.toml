@@ -3,8 +3,11 @@ name = "threading-multiprocessing"
 version = "0.1.0"
 requires-python = "== 3.14.5"
 dependencies = [
+    "codetiming>=1.4.0",
     "pandas==3.0.6",
     "pydantic-settings==2.16.1",
+    "ruff>=0.17.3",
+    "tenacity>=9.2.1",
     "tqdm==4.70.1",
     "yfinance==1.7.0",
 ]

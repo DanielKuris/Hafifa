@@ -2,13 +2,33 @@ from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import yfinance as yf
+from tenacity import (
+    RetryCallState,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_fixed,
+)
+from yfinance.exceptions import YFException, YFPricesMissingError
 
 from src.config.logger import get_logger
 from src.config.settings import settings
-import time
 from src.models.stock_data import StockData
 
 logger = get_logger(__name__)
+
+
+def return_last_fetch_result(
+    retry_state: RetryCallState,
+) -> pd.DataFrame:
+    logger.error(
+        f"Stock price fetch failed after {retry_state.attempt_number} attempts with exception: {retry_state.outcome.exception()}",
+    )
+
+    if retry_state.outcome.failed:
+        return pd.DataFrame()
+
+    return retry_state.outcome.result()
 
 
 def convert_datetime_to_utc(timestamp: datetime) -> datetime:
@@ -18,6 +38,12 @@ def convert_datetime_to_utc(timestamp: datetime) -> datetime:
     return timestamp.astimezone(UTC)
 
 
+@retry(
+    stop=stop_after_attempt(2),
+    wait=wait_fixed(1),
+    retry=retry_if_exception_type(YFPricesMissingError),
+    retry_error_callback=return_last_fetch_result,
+)
 def get_stock_prices(
     stock_type: str,
     requested_timestamps: list[datetime],
@@ -31,34 +57,22 @@ def get_stock_prices(
     start = (min(target_times) - timedelta(hours=1)).replace(microsecond=0)
     end = (max(target_times) + timedelta(hours=1)).replace(microsecond=0)
 
-    for attempt in range(2):
-        try:
-            prices = ticker.history(
-                start=start,
-                end=end,
-                interval=settings.STOCK_PRICE_INTERVAL,
-            )
+    try:
+        return ticker.history(
+            start=start,
+            end=end,
+            interval=settings.STOCK_PRICE_INTERVAL,
+        )
 
-            if not prices.empty:
-                return prices
+    except YFPricesMissingError:
+        raise
 
-            error_message = "Yahoo Finance returned an empty DataFrame"
+    except YFException as error:
+        logger.error(
+            f"Unexpected yfinance exception fetching prices for {stock_type}: {error}"
+        )
 
-        except Exception as error:
-            error_message = f"{type(error).__name__}: {error}"
-
-        if attempt == 0:
-            logger.warning(
-                f"Attempt 1/2 failed to fetch {stock_type}: {error_message}. "
-                "Retrying in 1 second."
-            )
-            time.sleep(1)
-        else:
-            logger.error(
-                f"Attempt 2/2 failed to fetch {stock_type}: {error_message}"
-            )
-
-    return pd.DataFrame()
+        return pd.DataFrame()
 
 
 def convert_price_index_to_utc(

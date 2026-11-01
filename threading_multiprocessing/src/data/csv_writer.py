@@ -1,11 +1,18 @@
 from pathlib import Path
 
 import pandas as pd
+from codetiming import Timer
 
-from src.config.metrics import timed
+from src.config.logger import get_logger
+
+logger = get_logger(__name__)
 
 
-@timed
+@Timer(
+    name="write_dataframe_to_csv",
+    text="{name} took {seconds:.2f} seconds",
+    logger=logger.info,
+)
 def write_dataframe_to_csv(
     dataframe: pd.DataFrame,
     destination_file: Path,
