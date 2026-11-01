@@ -9,11 +9,11 @@ from tenacity import (
     stop_after_attempt,
     wait_fixed,
 )
-from yfinance.exceptions import YFException, YFPricesMissingError
+from yfinance.exceptions import YFException
 
 from src.config.logger import get_logger
 from src.config.settings import settings
-from src.models.stock_data import StockData
+from src.models.stock_data import StockPriceTask
 
 logger = get_logger(__name__)
 
@@ -22,13 +22,11 @@ def return_last_fetch_result(
     retry_state: RetryCallState,
 ) -> pd.DataFrame:
     logger.error(
-        f"Stock price fetch failed after {retry_state.attempt_number} attempts with exception: {retry_state.outcome.exception()}",
+        f"Stock price fetch failed after {retry_state.attempt_number} attempts "
+        f"with exception: {retry_state.outcome.exception()}"
     )
 
-    if retry_state.outcome.failed:
-        return pd.DataFrame()
-
-    return retry_state.outcome.result()
+    return pd.DataFrame()
 
 
 def convert_datetime_to_utc(timestamp: datetime) -> datetime:
@@ -41,38 +39,21 @@ def convert_datetime_to_utc(timestamp: datetime) -> datetime:
 @retry(
     stop=stop_after_attempt(2),
     wait=wait_fixed(1),
-    retry=retry_if_exception_type(YFPricesMissingError),
+    retry=retry_if_exception_type(YFException),
     retry_error_callback=return_last_fetch_result,
 )
 def get_stock_prices(
-    stock_type: str,
-    requested_timestamps: list[datetime],
+    stock_id: str,
+    start: datetime,
+    end: datetime,
 ) -> pd.DataFrame:
-    ticker = yf.Ticker(stock_type)
+    ticker = yf.Ticker(stock_id)
 
-    target_times = [
-        convert_datetime_to_utc(timestamp) for timestamp in requested_timestamps
-    ]
-
-    start = (min(target_times) - timedelta(hours=1)).replace(microsecond=0)
-    end = (max(target_times) + timedelta(hours=1)).replace(microsecond=0)
-
-    try:
-        return ticker.history(
-            start=start,
-            end=end,
-            interval=settings.STOCK_PRICE_INTERVAL,
-        )
-
-    except YFPricesMissingError:
-        raise
-
-    except YFException as error:
-        logger.error(
-            f"Unexpected yfinance exception fetching prices for {stock_type}: {error}"
-        )
-
-        return pd.DataFrame()
+    return ticker.history(
+        start=start,
+        end=end,
+        interval=settings.STOCK_PRICE_INTERVAL,
+    )
 
 
 def convert_price_index_to_utc(
@@ -170,10 +151,10 @@ def find_closest_price(
 def extract_current_price(
     prices: pd.DataFrame,
     original_timestamp: datetime,
-    stock_type: str,
+    stock_id: str,
 ) -> float | None:
     if prices.empty:
-        logger.error(f"No prices returned for {stock_type} at {original_timestamp}")
+        logger.error(f"No prices returned for {stock_id} at {original_timestamp}")
 
         return None
 
@@ -192,7 +173,7 @@ def extract_current_price(
     if current_price is None:
         logger.error(
             f"No price found within {settings.STOCK_PRICE_TOLERANCE_MINUTES} "
-            f"minutes of {original_timestamp} for {stock_type}"
+            f"minutes of {original_timestamp} for {stock_id}"
         )
 
         return None
@@ -200,46 +181,48 @@ def extract_current_price(
     return current_price
 
 
-def create_stock_data(
-    stock_type: str,
-    original_timestamp: datetime,
+def append_stock_data(
+    results: list[dict[str, datetime | str | float]],
+    stock_id: str,
+    timestamp: datetime,
     prices: pd.DataFrame,
-) -> StockData | None:
+) -> None:
     current_price = extract_current_price(
         prices,
-        original_timestamp,
-        stock_type,
+        timestamp,
+        stock_id,
     )
 
     if current_price is None:
-        return None
+        return
 
-    return StockData(
-        hour=original_timestamp,
-        stock_type=stock_type,
-        current_price=current_price,
-    )
+    results.append({
+        "timestamp": timestamp,
+        "stock_id": stock_id,
+        "current_price": current_price,
+    })
 
 
-def fetch_stock_data_for_a_day(
-    stock_type: str,
-    requested_timestamps: list[datetime],
-) -> list[StockData]:
-    if not requested_timestamps:
-        return []
+def fetch_stock_data_for_group(
+    task: StockPriceTask,
+) -> pd.DataFrame:
+    stock_id = task.stock_type
+    requested_timestamps = list(task.timestamps)
 
-    try:
-        prices = get_stock_prices(stock_type, requested_timestamps)
-        prices = convert_price_index_to_utc(prices)
+    target_times = [
+        convert_datetime_to_utc(timestamp)
+        for timestamp in requested_timestamps
+    ]
 
-        results = [
-            create_stock_data(stock_type, original_timestamp, prices)
-            for original_timestamp in requested_timestamps
-        ]
+    start = min(target_times) - timedelta(hours=1)
+    end = max(target_times) + timedelta(hours=1)
 
-        return [result for result in results if result is not None]
+    prices = get_stock_prices(stock_id, start, end)
+    prices = convert_price_index_to_utc(prices)
 
-    except TypeError as error:
-        logger.error(f"Failed to fetch prices for {stock_type}: {error}")
+    results: list[dict[str, datetime | str | float]] = []
 
-        return []
+    for timestamp in requested_timestamps:
+        append_stock_data(results, stock_id, timestamp, prices)
+
+    return pd.DataFrame(results)

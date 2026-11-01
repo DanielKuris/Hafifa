@@ -5,52 +5,80 @@ from concurrent.futures import (
     ThreadPoolExecutor,
     wait,
 )
-from dataclasses import asdict
-from datetime import date, datetime
 
 import pandas as pd
 from codetiming import Timer
 from tqdm import tqdm
 
-from src.business_logic.stock_price_fetcher import fetch_stock_data_for_a_day
+import re
+from src.business_logic.stock_price_fetcher import fetch_stock_data_for_group
 from src.config.logger import get_logger
 from src.config.settings import settings
-from src.models.stock_data import StockData
+from src.models.stock_data import StockPriceTask
 
 logger = get_logger(__name__)
 
-StockPriceTask = tuple[str, list[datetime]]
 
+def validate_split_time(split_time: tuple[int, str]) -> None:
+    if not isinstance(split_time, tuple) or len(split_time) != 2:
+        raise ValueError(
+            "split_time must be a tuple of (int, str), e.g., (1, 'H') for 1 hour"
+        )
 
-def create_stock_price_tasks_per_day(
-    stock_timestamps: dict[str, dict[date, list[datetime]]],
-) -> Iterator[StockPriceTask]:
-    for stock_type, timestamps_by_day in stock_timestamps.items():
-        for timestamps in timestamps_by_day.values():
-            yield stock_type, timestamps
+    if not isinstance(split_time[0], int) or split_time[0] <= 1:
+        raise ValueError("The first element of split_time must be at least 1")
 
+    if not isinstance(split_time[1], str) or not re.fullmatch(
+        r"[dwmy]",
+        split_time[1].lower(),
+    ):
+        raise ValueError(
+            "The second element of split_time must be one of: d, w, m, y."
+        )
+
+def create_stock_price_tasks(
+    stock_data: pd.DataFrame,
+    split_time: tuple[int, str],
+) -> list[StockPriceTask]:
+
+    validate_split_time(split_time)
+
+    frequency = f"{split_time[0]}{split_time[1]}"
+    grouped_data = stock_data.groupby(
+        [
+            "stock_id",
+            pd.Grouper(
+                key="timestamp",
+                freq=frequency,
+            ),
+        ]
+    )
+
+    return [
+        StockPriceTask(
+            stock_type=stock_id,
+            timestamps=tuple(group["timestamp"]),
+        )
+        for (stock_id, _), group in grouped_data
+    ]
 
 def _submit_next_task(
     executor: ThreadPoolExecutor,
     tasks: Iterator[StockPriceTask],
-) -> Future[list[StockData]] | None:
+) -> Future[pd.DataFrame] | None:
     try:
-        stock_type, requested_timestamps = next(tasks)
+        task = next(tasks)
     except StopIteration:
         return None
 
-    return executor.submit(
-        fetch_stock_data_for_a_day,
-        stock_type,
-        requested_timestamps,
-    )
+    return executor.submit(fetch_stock_data_for_group, task)
 
 
 def submit_tasks_and_yield_stock_prices(
     executor: ThreadPoolExecutor,
     tasks: Iterator[StockPriceTask],
-) -> Iterator[StockData]:
-    pending: set[Future[list[StockData]]] = set()
+) -> Iterator[pd.DataFrame]:
+    pending: set[Future[pd.DataFrame]] = set()
 
     for _ in range(settings.MAX_WORKERS):
         future = _submit_next_task(executor, tasks)
@@ -67,10 +95,7 @@ def submit_tasks_and_yield_stock_prices(
         )
 
         for future in completed:
-            try:
-                yield from future.result()
-            except (ValueError, TypeError) as error:
-                logger.error(f"Failed to fetch stock prices: {error}")
+            yield future.result()
 
             next_future = _submit_next_task(executor, tasks)
 
@@ -84,22 +109,23 @@ def submit_tasks_and_yield_stock_prices(
     logger=logger.info,
 )
 def fetch_stock_prices_concurrently(
-    stock_timestamps: dict[str, dict[date, list[datetime]]],
+    tasks: list[StockPriceTask],
 ) -> pd.DataFrame:
-    total_tasks = sum(
-        len(timestamps_by_day) for timestamps_by_day in stock_timestamps.values()
-    )
-    tasks = create_stock_price_tasks_per_day(stock_timestamps)
-
     with ThreadPoolExecutor(
         max_workers=settings.MAX_WORKERS,
     ) as executor:
-        stock_prices = list(
+        stock_price_groups = list(
             tqdm(
-                submit_tasks_and_yield_stock_prices(executor, tasks),
-                total=total_tasks,
+                submit_tasks_and_yield_stock_prices(
+                    executor,
+                    iter(tasks),
+                ),
+                total=len(tasks),
                 desc="Fetching stock prices",
             )
         )
 
-    return pd.DataFrame([asdict(stock_price) for stock_price in stock_prices])
+    if not stock_price_groups:
+        return pd.DataFrame()
+
+    return pd.concat(stock_price_groups, ignore_index=True)
