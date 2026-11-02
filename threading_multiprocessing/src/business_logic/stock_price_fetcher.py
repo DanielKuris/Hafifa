@@ -206,7 +206,7 @@ def append_stock_data(
 def fetch_stock_data_for_group(
     task: StockPriceTask,
 ) -> pd.DataFrame:
-    stock_id = task.stock_type
+    stock_id = task.stock_id
     requested_timestamps = list(task.timestamps)
 
     target_times = [

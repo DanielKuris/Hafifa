@@ -1,6 +1,3 @@
-
-import yfinance as yf
-
 from src.business_logic.convert_df_to_percent_change import (
     convert_stock_prices_to_percent_change,
 )

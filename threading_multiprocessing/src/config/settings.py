@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     PREVIOUS_PRICE_MAX_AGE_MINUTES: int = 90
     STOCK_PRICE_TOLERANCE_MINUTES: int = 30
     STOCK_PRICE_INTERVAL: str = "1h"
-    DEFAULT_SPLIT_TIME: tuple[int, str] = (5, "d")
+    DEFAULT_SPLIT_TIME: tuple[int, str] = (6, "m")
     MAX_WORKERS: int = 5
     DESTINATION_FILE_NAME: str = "percentage_changes.csv"
     TEMP_CSV_STOCK_PRICES_FILE: Path = Path("out/stock_prices.csv")

@@ -14,7 +14,7 @@ def convert_hour_column_to_utc(stock_prices: pd.DataFrame) -> pd.DataFrame:
         return
     
     stock_prices = stock_prices.copy()
-    stock_prices["hour"] = pd.to_datetime(stock_prices["hour"], utc=True)
+    stock_prices["hour"] = pd.to_datetime(stock_prices["timestamp"], utc=True)
 
     return stock_prices
 
@@ -32,9 +32,9 @@ def is_price_too_old(
 
 def find_previous_prices(stock_prices: pd.DataFrame) -> pd.DataFrame:
     stock_prices = convert_hour_column_to_utc(stock_prices)
-    stock_prices = stock_prices.sort_values(["stock_type", "hour"]).copy()
+    stock_prices = stock_prices.sort_values(["stock_id", "hour"]).copy()
 
-    grouped_prices = stock_prices.groupby("stock_type")
+    grouped_prices = stock_prices.groupby("stock_id")
 
     stock_prices["previous_price"] = grouped_prices["current_price"].shift(1)
     stock_prices["previous_hour"] = grouped_prices["hour"].shift(1)
@@ -63,7 +63,7 @@ def remove_invalid_previous_prices(
         )
 
         logger.error(
-            f"Cannot calculate percentage change for {row['stock_type']} "
+            f"Cannot calculate percentage change for {row['stock_id']} "
             f"at {row['hour']}: {reason}"
         )
 
@@ -80,7 +80,7 @@ def calculate_percentage_changes(
         * 100
     )
 
-    return stock_prices[["hour", "stock_type", "percentage_change"]]
+    return stock_prices[["hour", "stock_id", "percentage_change"]]
 
 
 @Timer(
@@ -97,6 +97,6 @@ def convert_stock_prices_to_percent_change(
     percentage_changes = calculate_percentage_changes(stock_prices)
 
     return percentage_changes.sort_values(
-        ["stock_type", "hour"],
+        ["stock_id", "hour"],
         ascending=[True, False],
     ).reset_index(drop=True)

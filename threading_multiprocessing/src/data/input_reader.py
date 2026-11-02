@@ -29,7 +29,7 @@ def get_timestamps_from_file(input_file: Path) -> list[pd.Timestamp]:
         ]
 
 
-def get_timestamps_per_stock(input_directory: Path) -> pd.DataFrame:
+def get_stock_data(input_directory: Path) -> pd.DataFrame:
     stock_data = []
 
     for input_file in input_directory.glob(
@@ -49,5 +49,5 @@ def get_timestamps_per_stock(input_directory: Path) -> pd.DataFrame:
             }
             for timestamp in timestamps
         )
-        
+
     return pd.DataFrame(stock_data, columns=["stock_id", "timestamp"])

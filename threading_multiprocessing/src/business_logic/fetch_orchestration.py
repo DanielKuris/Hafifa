@@ -25,7 +25,7 @@ def validate_split_time(split_time: tuple[int, str]) -> None:
             "split_time must be a tuple of (int, str), e.g., (1, 'H') for 1 hour"
         )
 
-    if not isinstance(split_time[0], int) or split_time[0] <= 1:
+    if not isinstance(split_time[0], int) or split_time[0] < 1:
         raise ValueError("The first element of split_time must be at least 1")
 
     if not isinstance(split_time[1], str) or not re.fullmatch(
@@ -36,6 +36,20 @@ def validate_split_time(split_time: tuple[int, str]) -> None:
             "The second element of split_time must be one of: d, w, m, y."
         )
 
+def convert_split_time_to_frequency(
+    split_time: tuple[int, str],
+) -> str:
+    frequency_units = {
+        "d": "D",
+        "w": "W",
+        "m": "ME",
+        "y": "YE",
+    }
+
+    amount, unit = split_time
+
+    return f"{amount}{frequency_units[unit.lower()]}"
+
 def create_stock_price_tasks(
     stock_data: pd.DataFrame,
     split_time: tuple[int, str],
@@ -43,7 +57,7 @@ def create_stock_price_tasks(
 
     validate_split_time(split_time)
 
-    frequency = f"{split_time[0]}{split_time[1]}"
+    frequency = convert_split_time_to_frequency(split_time)
     grouped_data = stock_data.groupby(
         [
             "stock_id",
@@ -56,7 +70,7 @@ def create_stock_price_tasks(
 
     return [
         StockPriceTask(
-            stock_type=stock_id,
+            stock_id=stock_id,
             timestamps=tuple(group["timestamp"]),
         )
         for (stock_id, _), group in grouped_data
