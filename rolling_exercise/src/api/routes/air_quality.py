@@ -1,9 +1,10 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from api.dependencies import get_session
+from logic.air_quality_service import upload_air_quality_data
 from logic.query_service import (
     get_best_cities,
     get_city_aqi_history,
@@ -14,7 +15,7 @@ from schemas.air_quality import (
     AirQualityResponse,
     CityAverageResponse,
 )
-
+from schemas.upload import UploadResponse
 
 router = APIRouter(prefix="/air-quality", tags=["Air Quality"])
 
@@ -62,3 +63,14 @@ def read_best_cities(
     session: Session = Depends(get_session),
 ) -> list[CityAverageResponse]:
     return get_best_cities(session)
+
+
+@router.post(
+    "/upload",
+    response_model=UploadResponse,
+)
+def upload_measurements(
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+) -> dict[str, int]:
+    return upload_air_quality_data(session, file.file)

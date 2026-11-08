@@ -1,6 +1,5 @@
-
+from collections.abc import Sequence
 from datetime import date
-from typing import Sequence
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -48,17 +47,13 @@ class AirQualityRepository:
 
     def get_city_aqi_history(self, city: str) -> list[AirQuality]:
         statement = (
-            select(AirQuality)
-            .where(AirQuality.city == city)
-            .order_by(AirQuality.date)
+            select(AirQuality).where(AirQuality.city == city).order_by(AirQuality.date)
         )
 
         return list(self.session.scalars(statement).all())
 
     def get_city_average_aqi(self, city: str) -> float | None:
-        statement = select(func.avg(AirQuality.aqi)).where(
-            AirQuality.city == city
-        )
+        statement = select(func.avg(AirQuality.aqi)).where(AirQuality.city == city)
         average_aqi = self.session.scalar(statement)
 
         return float(average_aqi) if average_aqi is not None else None

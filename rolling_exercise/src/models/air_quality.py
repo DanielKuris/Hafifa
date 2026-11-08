@@ -1,4 +1,3 @@
-
 from datetime import date
 from typing import TYPE_CHECKING
 
@@ -23,7 +22,7 @@ class AirQuality(Base):
     aqi: Mapped[float] = mapped_column(Float, nullable=False)
     aqi_level: Mapped[str] = mapped_column(String, nullable=False)
 
-    alert: Mapped["Alert | None"] = relationship(
+    alert: Mapped[Alert | None] = relationship(
         back_populates="measurement",
         uselist=False,
     )

@@ -11,7 +11,6 @@ from logic.data_validator import validate_csv_row, validate_required_fields
 from logic.exceptions import InvalidCSVError, NoValidRowsError
 from models.air_quality import AirQuality
 
-
 logger = logging.getLogger(__name__)
 
 

@@ -5,7 +5,6 @@ from api.routes.air_quality import router as air_quality_router
 from api.routes.alerts import router as alerts_router
 from logic.exceptions import MeasurementNotFoundError
 
-
 app = FastAPI()
 
 app.include_router(air_quality_router)

@@ -1,4 +1,3 @@
-
 import logging
 from http import HTTPStatus
 
@@ -8,9 +7,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from schemas.error import ErrorResponse
 from logic.exceptions import MeasurementNotFoundError
-
+from schemas.error import ErrorResponse
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +90,7 @@ async def handle_unexpected_exception(
         content=response.model_dump(),
     )
 
+
 async def handle_measurement_not_found(
     request: Request,
     exc: MeasurementNotFoundError,
@@ -106,6 +105,7 @@ async def handle_measurement_not_found(
         status_code=404,
         content=response.model_dump(),
     )
+
 
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(

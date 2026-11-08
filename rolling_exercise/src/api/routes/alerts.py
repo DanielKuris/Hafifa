@@ -11,7 +11,6 @@ from logic.alert_service import (
 )
 from schemas.alert import AlertResponse
 
-
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
 
 

@@ -1,7 +1,8 @@
-from sqlalchemy import Date, Float, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import date
 from typing import TYPE_CHECKING
+
+from sqlalchemy import Date, Float, ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.base import Base
 
@@ -21,6 +22,4 @@ class Alert(Base):
         nullable=False,
     )
 
-    measurement: Mapped["AirQuality"] = relationship(
-        back_populates="alert"
-    )
+    measurement: Mapped[AirQuality] = relationship(back_populates="alert")

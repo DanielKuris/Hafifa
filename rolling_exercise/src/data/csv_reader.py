@@ -1,6 +1,7 @@
 import csv
+from collections.abc import Iterator
 from io import TextIOWrapper
-from typing import BinaryIO, Iterator
+from typing import BinaryIO
 
 
 def read_csv_rows(

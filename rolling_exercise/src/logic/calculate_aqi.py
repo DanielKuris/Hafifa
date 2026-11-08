@@ -29,7 +29,9 @@ def calculate_aqi(pm25, no2, co2):
     def calculate_sub_index(value, breakpoints):
         for lower, upper, aqi_lower, aqi_upper in breakpoints:
             if lower <= value <= upper:
-                return aqi_lower + (value - lower) * (aqi_upper - aqi_lower) / (upper - lower)
+                return aqi_lower + (value - lower) * (aqi_upper - aqi_lower) / (
+                    upper - lower
+                )
         return 500
 
     pm25_aqi = calculate_sub_index(pm25, pm25_breakpoints)
@@ -44,9 +46,11 @@ def calculate_aqi(pm25, no2, co2):
         (150, "Unhealthy for Sensitive Groups"),
         (200, "Unhealthy"),
         (300, "Very Unhealthy"),
-        (500, "Hazardous")
+        (500, "Hazardous"),
     ]
 
-    aqi_level = next(level for threshold, level in aqi_thresholds if overall_aqi <= threshold)
+    aqi_level = next(
+        level for threshold, level in aqi_thresholds if overall_aqi <= threshold
+    )
 
     return overall_aqi, aqi_level

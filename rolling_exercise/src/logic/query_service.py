@@ -1,4 +1,3 @@
-
 from datetime import date
 
 from sqlalchemy.orm import Session
@@ -37,9 +36,7 @@ def get_city_average_aqi(
     average_aqi = repository.get_city_average_aqi(city)
 
     if average_aqi is None:
-        raise MeasurementNotFoundError(
-            f"No measurements found for city '{city}'."
-        )
+        raise MeasurementNotFoundError(f"No measurements found for city '{city}'.")
 
     return {
         "city": city,

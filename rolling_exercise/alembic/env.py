@@ -1,10 +1,9 @@
-
 import sys
-from logging.config import fileConfig
 from pathlib import Path
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
+
+from alembic import context
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIRECTORY = PROJECT_ROOT / "src"
@@ -14,15 +13,8 @@ sys.path.insert(0, str(SOURCE_DIRECTORY))
 
 from config.settings import settings
 from database.base import Base
-# Importing both models to auto-detect them and create the migration scripts
-from models.air_quality import AirQuality
-from models.alert import Alert
-
 
 alembic_config = context.config
-
-if alembic_config.config_file_name is not None:
-    fileConfig(alembic_config.config_file_name)
 
 alembic_config.set_main_option(
     "sqlalchemy.url",
