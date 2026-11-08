@@ -14,3 +14,7 @@ class AirQualityResponse(BaseModel):
     co2: float
     aqi: float
     aqi_level: str
+
+class CityAverageResponse(BaseModel):
+    city: str
+    average_aqi: float
