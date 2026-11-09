@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from api.dependencies import get_session
-from logic.alert_service import (
+from logic.alert_query_service import (
     get_alerts,
     get_alerts_by_city,
     get_alerts_by_date,

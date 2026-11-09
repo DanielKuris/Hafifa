@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from api.dependencies import get_session
-from logic.air_quality_service import upload_air_quality_data
-from logic.query_service import (
+from logic.air_quality_upload_service import upload_air_quality_data
+from logic.air_quality_query_service import (
     get_best_cities,
     get_city_aqi_history,
     get_city_average_aqi,
