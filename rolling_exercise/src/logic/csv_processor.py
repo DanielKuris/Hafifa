@@ -35,7 +35,6 @@ def process_csv(file: BinaryIO) -> CSVProcessingResult:
     )
 
 
-
 def iter_measurements(
     file: BinaryIO,
     stats: CSVProcessingStats,
@@ -71,7 +70,6 @@ def iter_measurements(
 
     finally:
         rows.close()
-
 
 
 def create_measurement(

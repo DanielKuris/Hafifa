@@ -1,4 +1,3 @@
-
 import logging
 from io import BytesIO
 
@@ -110,15 +109,13 @@ def test_process_csv_empty_file() -> None:
 
 
 def test_process_csv_missing_required_columns() -> None:
-    csv_content = (
-        b"date,city,PM2.5,NO2\n"
-        b"2026-11-01,Tel Aviv,12.5,20\n"
-    )
+    csv_content = b"date,city,PM2.5,NO2\n2026-11-01,Tel Aviv,12.5,20\n"
 
     result = process_csv(create_csv_file(csv_content))
 
     with pytest.raises(InvalidCSVError, match="missing required columns"):
         list(result.measurements)
+
 
 def test_process_csv_closes_reader_when_generator_is_closed(
     valid_csv: bytes,

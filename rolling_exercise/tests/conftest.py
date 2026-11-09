@@ -1,4 +1,3 @@
-
 from collections.abc import Generator
 
 import pytest
@@ -13,7 +12,7 @@ from main import app
 
 
 @pytest.fixture(scope="session")
-def test_engine() -> Generator[Engine, None, None]:
+def test_engine() -> Generator[Engine]:
     if settings.TEST_DATABASE_URL is None:
         raise RuntimeError("TEST_DATABASE_URL is not configured")
 
@@ -21,9 +20,7 @@ def test_engine() -> Generator[Engine, None, None]:
     database_name = make_url(database_url).database
 
     if database_name != "air_quality_test_db":
-        raise RuntimeError(
-            f"Refusing to run tests against database: {database_name}"
-        )
+        raise RuntimeError(f"Refusing to run tests against database: {database_name}")
 
     engine = create_engine(
         database_url,
@@ -36,7 +33,7 @@ def test_engine() -> Generator[Engine, None, None]:
 
 
 @pytest.fixture
-def db_session(test_engine: Engine) -> Generator[Session, None, None]:
+def db_session(test_engine: Engine) -> Generator[Session]:
     connection = test_engine.connect()
     transaction = connection.begin()
 
@@ -53,8 +50,8 @@ def db_session(test_engine: Engine) -> Generator[Session, None, None]:
 
 
 @pytest.fixture
-def client(db_session: Session) -> Generator[TestClient, None, None]:
-    def override_get_session() -> Generator[Session, None, None]:
+def client(db_session: Session) -> Generator[TestClient]:
+    def override_get_session() -> Generator[Session]:
         yield db_session
 
     app.dependency_overrides[get_session] = override_get_session

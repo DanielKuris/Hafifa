@@ -92,3 +92,6 @@ class AirQualityRepository:
 
     def add_alert(self, alert: Alert) -> None:
         self.session.add(alert)
+
+    def flush(self) -> None:
+        self.session.flush()
