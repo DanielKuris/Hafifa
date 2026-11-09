@@ -35,36 +35,43 @@ def process_csv(file: BinaryIO) -> CSVProcessingResult:
     )
 
 
+
 def iter_measurements(
     file: BinaryIO,
     stats: CSVProcessingStats,
 ) -> Iterator[AirQuality]:
     rows = read_csv_rows(file)
-    first_row = next(rows, None)
-
-    if first_row is None:
-        raise NoValidRowsError("CSV file contains no data rows")
 
     try:
-        validate_required_fields(first_row)
-    except ValueError as exc:
-        raise InvalidCSVError(str(exc)) from exc
+        first_row = next(rows, None)
 
-    for row_number, row in enumerate(chain((first_row,), rows), start=2):
-        stats.total_rows += 1
+        if first_row is None:
+            raise NoValidRowsError("CSV file contains no data rows")
 
         try:
-            validate_csv_row(row)
-            measurement = create_measurement(row)
+            validate_required_fields(first_row)
         except ValueError as exc:
-            logger.warning(f"Skipping CSV row {row_number}: {exc}")
-            stats.ignored_rows += 1
-            continue
+            raise InvalidCSVError(str(exc)) from exc
 
-        yield measurement
+        for row_number, row in enumerate(chain((first_row,), rows), start=2):
+            stats.total_rows += 1
 
-    if stats.total_rows == stats.ignored_rows:
-        raise NoValidRowsError("CSV file contains no valid measurement rows")
+            try:
+                validate_csv_row(row)
+                measurement = create_measurement(row)
+            except ValueError as exc:
+                logger.warning(f"Skipping CSV row {row_number}: {exc}")
+                stats.ignored_rows += 1
+                continue
+
+            yield measurement
+
+        if stats.total_rows == stats.ignored_rows:
+            raise NoValidRowsError("CSV file contains no valid measurement rows")
+
+    finally:
+        rows.close()
+
 
 
 def create_measurement(

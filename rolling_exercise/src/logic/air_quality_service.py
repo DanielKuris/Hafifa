@@ -8,6 +8,7 @@ from data.repository import AirQualityRepository
 from logic.csv_processor import process_csv
 from models.air_quality import AirQuality
 from models.alert import Alert
+from contextlib import closing
 
 
 def upload_air_quality_data(
@@ -17,11 +18,12 @@ def upload_air_quality_data(
     repository = AirQualityRepository(session)
     processing_result = process_csv(file)
 
-    with session.begin():
-        inserted_rows, alerts_created = save_measurements(
-            repository,
-            processing_result.measurements,
-        )
+    with closing(processing_result.measurements) as measurements:
+        with session.begin():
+            inserted_rows, alerts_created = save_measurements(
+                repository,
+                measurements,
+            )
 
     return {
         "total_rows": processing_result.stats.total_rows,
