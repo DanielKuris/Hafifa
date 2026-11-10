@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from logic.exceptions import MeasurementNotFoundError
-from logic.air_quality_query_service import (
+from logic.air_quality_service import (
     get_best_cities,
     get_city_aqi_history,
     get_city_average_aqi,

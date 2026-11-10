@@ -1,3 +1,4 @@
+
 from datetime import date
 
 from sqlalchemy.orm import Session
@@ -6,25 +7,14 @@ from data.repository import AirQualityRepository
 from database.models.alert import Alert
 
 
-def get_alerts(session: Session) -> list[Alert]:
-    repository = AirQualityRepository(session)
-
-    return repository.get_alerts()
-
-
-def get_alerts_by_city(
+def get_alerts(
     session: Session,
-    city: str,
+    city: str | None = None,
+    alert_date: date | None = None,
 ) -> list[Alert]:
     repository = AirQualityRepository(session)
 
-    return repository.get_alerts(city=city)
-
-
-def get_alerts_by_date(
-    session: Session,
-    alert_date: date,
-) -> list[Alert]:
-    repository = AirQualityRepository(session)
-
-    return repository.get_alerts(alert_date=alert_date)
+    return repository.get_alerts(
+        city=city,
+        alert_date=alert_date,
+    )

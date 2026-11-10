@@ -1,19 +1,14 @@
-import csv
-from collections.abc import Iterator
-from io import TextIOWrapper
+import pandas as pd
 from typing import BinaryIO
+from logic.exceptions import InvalidCSVError , NoValidRowsError
 
-
-def read_csv_rows(
-    file: BinaryIO,
-) -> Iterator[dict[str | None, str | None]]:
-    text_stream = TextIOWrapper(
-        file,
-        encoding="utf-8-sig",
-        newline="",
-    )
-
+def read_csv(file: BinaryIO) -> pd.DataFrame:
     try:
-        yield from csv.DictReader(text_stream)
-    finally:
-        text_stream.detach()
+        return pd.read_csv(
+            file,
+            encoding="utf-8-sig",
+        )
+    except pd.errors.ParserError as exc:
+        raise InvalidCSVError("CSV file could not be parsed") from exc
+    except pd.errors.EmptyDataError as exc:
+        raise NoValidRowsError("CSV file contains no data rows") from exc

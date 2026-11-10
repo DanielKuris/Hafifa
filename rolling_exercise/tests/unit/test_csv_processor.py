@@ -3,7 +3,7 @@ from io import BytesIO
 
 import pytest
 
-from logic.csv_processor import (
+from logic.read_csv_and_prepare_measurements import (
     CSVProcessingResult,
     CSVProcessingStats,
     process_csv,

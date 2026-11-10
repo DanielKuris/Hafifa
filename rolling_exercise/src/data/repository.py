@@ -1,7 +1,8 @@
-from collections.abc import Sequence
+
 from datetime import date
 
-from sqlalchemy import func, select
+import pandas as pd
+from sqlalchemy import func, insert, select
 from sqlalchemy.orm import Session
 
 from database.models.air_quality import AirQuality
@@ -12,17 +13,25 @@ class AirQualityRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def add_measurements(
-        self,
-        measurements: Sequence[AirQuality],
-    ) -> None:
-        self.session.add_all(measurements)
+    def insert_measurements(self, dataframe: pd.DataFrame) -> list[int]:
+        records = dataframe.to_dict(orient="records")
 
-    def add_alerts(
-        self,
-        alerts: Sequence[Alert],
-    ) -> None:
-        self.session.add_all(alerts)
+        statement = insert(AirQuality).returning(
+            AirQuality.id,
+            sort_by_parameter_order=True,
+        )
+
+        return list(self.session.scalars(statement, records).all())
+
+    def insert_alerts(self, dataframe: pd.DataFrame) -> None:
+        if dataframe.empty:
+            return
+
+        records = dataframe.to_dict(orient="records")
+
+        statement = insert(Alert)
+
+        self.session.execute(statement, records)
 
     def get_measurements(
         self,
@@ -45,30 +54,31 @@ class AirQualityRepository:
 
         return list(self.session.scalars(statement).all())
 
-    def get_city_aqi_history(self, city: str) -> list[AirQuality]:
-        statement = (
-            select(AirQuality).where(AirQuality.city == city).order_by(AirQuality.date)
+    def get_city_average_aqi(self, city: str) -> float | None:
+        statement = select(func.avg(AirQuality.aqi)).where(
+            AirQuality.city == city
         )
 
-        return list(self.session.scalars(statement).all())
-
-    def get_city_average_aqi(self, city: str) -> float | None:
-        statement = select(func.avg(AirQuality.aqi)).where(AirQuality.city == city)
         average_aqi = self.session.scalar(statement)
 
         return float(average_aqi) if average_aqi is not None else None
 
     def get_best_cities(self, limit: int = 3) -> list[tuple[str, float]]:
+        average_aqi = func.avg(AirQuality.aqi).label("average_aqi")
+
         statement = (
-            select(AirQuality.city, func.avg(AirQuality.aqi).label("average_aqi"))
+            select(AirQuality.city, average_aqi)
             .group_by(AirQuality.city)
-            .order_by(func.avg(AirQuality.aqi))
+            .order_by(average_aqi, AirQuality.city)
             .limit(limit)
         )
 
         results = self.session.execute(statement).all()
 
-        return [(city, float(average_aqi)) for city, average_aqi in results]
+        return [
+            (city, float(average))
+            for city, average in results
+        ]
 
     def get_alerts(
         self,
@@ -86,12 +96,3 @@ class AirQualityRepository:
         statement = statement.order_by(Alert.date)
 
         return list(self.session.scalars(statement).all())
-
-    def add_measurement(self, measurement: AirQuality) -> None:
-        self.session.add(measurement)
-
-    def add_alert(self, alert: Alert) -> None:
-        self.session.add(alert)
-
-    def flush(self) -> None:
-        self.session.flush()
