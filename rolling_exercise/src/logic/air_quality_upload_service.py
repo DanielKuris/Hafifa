@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from config.settings import settings
 from data.repository import AirQualityRepository
 from logic.csv_processor import process_csv
-from models.air_quality import AirQuality
-from models.alert import Alert
+from database.models.air_quality import AirQuality
+from database.models.alert import Alert
 
 
 def upload_air_quality_data(

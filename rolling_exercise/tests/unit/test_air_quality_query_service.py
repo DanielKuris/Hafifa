@@ -12,7 +12,7 @@ from logic.air_quality_query_service import (
     get_city_average_aqi,
     get_measurements,
 )
-from models.air_quality import AirQuality
+from database.models.air_quality import AirQuality
 
 
 def create_measurement(

@@ -9,7 +9,7 @@ from logic.alert_query_service import (
     get_alerts_by_city,
     get_alerts_by_date,
 )
-from schemas.alert import AlertResponse
+from response_schemas.alert import AlertResponse
 
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
 

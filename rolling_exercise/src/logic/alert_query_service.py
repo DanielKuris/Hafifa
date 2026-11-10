@@ -3,7 +3,7 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from data.repository import AirQualityRepository
-from models.alert import Alert
+from database.models.alert import Alert
 
 
 def get_alerts(session: Session) -> list[Alert]:

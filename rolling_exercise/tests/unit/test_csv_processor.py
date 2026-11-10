@@ -9,7 +9,7 @@ from logic.csv_processor import (
     process_csv,
 )
 from logic.exceptions import InvalidCSVError, NoValidRowsError
-from models.air_quality import AirQuality
+from database.models.air_quality import AirQuality
 
 
 @pytest.fixture

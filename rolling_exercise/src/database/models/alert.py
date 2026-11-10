@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Date, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database.base import Base
+from database.models.base import Base
 
 if TYPE_CHECKING:
-    from models.air_quality import AirQuality
+    from database.models.air_quality import AirQuality
 
 
 class Alert(Base):

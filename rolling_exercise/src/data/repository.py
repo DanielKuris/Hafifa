@@ -4,8 +4,8 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from models.air_quality import AirQuality
-from models.alert import Alert
+from database.models.air_quality import AirQuality
+from database.models.alert import Alert
 
 
 class AirQualityRepository:

@@ -12,7 +12,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(SOURCE_DIRECTORY))
 
 from config.settings import settings
-from database.base import Base
+from database.models.base import Base
 
 alembic_config = context.config
 

@@ -11,11 +11,11 @@ from logic.air_quality_query_service import (
     get_city_average_aqi,
     get_measurements,
 )
-from schemas.air_quality import (
+from response_schemas.air_quality import (
     AirQualityResponse,
     CityAverageResponse,
 )
-from schemas.upload import UploadResponse
+from response_schemas.upload import UploadResponse
 
 router = APIRouter(prefix="/air-quality", tags=["Air Quality"])
 

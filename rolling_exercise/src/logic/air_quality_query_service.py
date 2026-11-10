@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from data.repository import AirQualityRepository
 from logic.exceptions import MeasurementNotFoundError
-from models.air_quality import AirQuality
+from database.models.air_quality import AirQuality
 
 
 def get_measurements(

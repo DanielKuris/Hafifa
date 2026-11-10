@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from logic.exceptions import MeasurementNotFoundError
-from schemas.error import ErrorResponse
+from response_schemas.error import ErrorResponse
 
 logger = logging.getLogger(__name__)
 
