@@ -1,12 +1,9 @@
-
 import logging
 from datetime import date
 from typing import BinaryIO
 
-import pandas as pd
 from sqlalchemy.orm import Session
 
-from config.settings import settings
 from data.repository import AirQualityRepository
 from database.models.air_quality import AirQuality
 from logic.exceptions import MeasurementNotFoundError
@@ -22,7 +19,6 @@ class AirQualityService:
         self.repository = AirQualityRepository(session)
         self.session = session
 
-    
     def upload_air_quality_data(self, file: BinaryIO) -> dict[str, int]:
         measurements_dataframe, alerts_dataframe, ignored_rows = (
             read_csv_and_prepare_measurements(file)
@@ -49,9 +45,7 @@ class AirQualityService:
             )
 
             alerts_dataframe = alerts_dataframe.assign(
-                measurement_id=alerts_dataframe.index.map(
-                    measurement_ids_by_index
-                )
+                measurement_id=alerts_dataframe.index.map(measurement_ids_by_index)
             )
 
             self.repository.insert_alerts(alerts_dataframe)
@@ -89,12 +83,9 @@ class AirQualityService:
         average_aqi = self.repository.get_city_average_aqi(city)
 
         if average_aqi is None:
-            raise MeasurementNotFoundError(
-                f"No measurements found for city '{city}'."
-            )
+            raise MeasurementNotFoundError(f"No measurements found for city '{city}'.")
 
         return city, average_aqi
-
 
     def get_best_cities(self) -> list[tuple[str, float]]:
         results = self.repository.get_best_cities()

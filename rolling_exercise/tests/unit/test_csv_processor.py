@@ -3,13 +3,13 @@ from io import BytesIO
 
 import pytest
 
+from database.models.air_quality import AirQuality
+from logic.exceptions import InvalidCSVError, NoValidRowsError
 from logic.read_csv_and_prepare_measurements import (
     CSVProcessingResult,
     CSVProcessingStats,
     process_csv,
 )
-from logic.exceptions import InvalidCSVError, NoValidRowsError
-from database.models.air_quality import AirQuality
 
 
 @pytest.fixture

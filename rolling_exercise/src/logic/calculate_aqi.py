@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 
-
 PM25_BREAKPOINTS = (
     (0, 12, 0, 50),
     (12.1, 35.4, 51, 100),
@@ -52,8 +51,7 @@ def calculate_sub_index(
         conditions.append(values.between(lower, upper))
 
         calculations.append(
-            aqi_lower
-            + (values - lower) * (aqi_upper - aqi_lower) / (upper - lower)
+            aqi_lower + (values - lower) * (aqi_upper - aqi_lower) / (upper - lower)
         )
 
     return pd.Series(
@@ -67,15 +65,16 @@ def calculate_aqi(dataframe: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
     no2_aqi = calculate_sub_index(dataframe["no2"], NO2_BREAKPOINTS)
     co2_aqi = calculate_sub_index(dataframe["co2"], CO2_BREAKPOINTS)
 
-    aqi_value = pd.concat(
-        [pm25_aqi, no2_aqi, co2_aqi],
-        axis=1,
-    ).max(axis=1).clip(lower=0, upper=500)
+    aqi_value = (
+        pd.concat(
+            [pm25_aqi, no2_aqi, co2_aqi],
+            axis=1,
+        )
+        .max(axis=1)
+        .clip(lower=0, upper=500)
+    )
 
-    conditions = [
-        aqi_value <= threshold
-        for threshold, _ in AQI_THRESHOLDS
-    ]
+    conditions = [aqi_value <= threshold for threshold, _ in AQI_THRESHOLDS]
 
     descriptions = [description for _, description in AQI_THRESHOLDS]
 

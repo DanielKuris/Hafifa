@@ -1,4 +1,3 @@
-
 import logging
 from typing import BinaryIO
 
@@ -46,9 +45,7 @@ def prepare_measurements(dataframe: pd.DataFrame) -> pd.DataFrame:
         format="%Y-%m-%d",
     ).dt.date
 
-    dataframe["aqi_value"], dataframe["aqi_description"] = calculate_aqi(
-        dataframe
-    )
+    dataframe["aqi_value"], dataframe["aqi_description"] = calculate_aqi(dataframe)
 
     return dataframe[
         [

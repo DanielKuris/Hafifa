@@ -1,18 +1,17 @@
-
 from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy.orm import Session
 
-from logic.exceptions import MeasurementNotFoundError
+from database.models.air_quality import AirQuality
 from logic.air_quality_service import (
     get_best_cities,
     get_city_aqi_history,
     get_city_average_aqi,
     get_measurements,
 )
-from database.models.air_quality import AirQuality
+from logic.exceptions import MeasurementNotFoundError
 
 
 def create_measurement(
@@ -86,9 +85,7 @@ def test_get_city_aqi_history_returns_multiple_measurements() -> None:
         result = get_city_aqi_history(session, "London")
 
     assert result == measurements
-    repository_class.return_value.get_city_aqi_history.assert_called_once_with(
-        "London"
-    )
+    repository_class.return_value.get_city_aqi_history.assert_called_once_with("London")
 
 
 def test_get_city_aqi_history_returns_empty_list() -> None:
@@ -114,9 +111,7 @@ def test_get_city_average_aqi_returns_average() -> None:
         "city": "London",
         "average_aqi": 45.0,
     }
-    repository_class.return_value.get_city_average_aqi.assert_called_once_with(
-        "London"
-    )
+    repository_class.return_value.get_city_average_aqi.assert_called_once_with("London")
 
 
 def test_get_city_average_aqi_raises_when_city_has_no_measurements() -> None:

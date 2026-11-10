@@ -1,6 +1,9 @@
-import pandas as pd
 from typing import BinaryIO
-from logic.exceptions import InvalidCSVError , NoValidRowsError
+
+import pandas as pd
+
+from logic.exceptions import InvalidCSVError, NoValidRowsError
+
 
 def read_csv(file: BinaryIO) -> pd.DataFrame:
     try:

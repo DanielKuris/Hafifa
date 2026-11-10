@@ -1,4 +1,3 @@
-
 from datetime import date
 
 import pandas as pd
@@ -55,9 +54,7 @@ class AirQualityRepository:
         return list(self.session.scalars(statement).all())
 
     def get_city_average_aqi(self, city: str) -> float | None:
-        statement = select(func.avg(AirQuality.aqi)).where(
-            AirQuality.city == city
-        )
+        statement = select(func.avg(AirQuality.aqi)).where(AirQuality.city == city)
 
         average_aqi = self.session.scalar(statement)
 
@@ -75,10 +72,7 @@ class AirQualityRepository:
 
         results = self.session.execute(statement).all()
 
-        return [
-            (city, float(average))
-            for city, average in results
-        ]
+        return [(city, float(average)) for city, average in results]
 
     def get_alerts(
         self,

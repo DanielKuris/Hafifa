@@ -1,4 +1,3 @@
-
 from datetime import date
 from typing import Annotated
 
@@ -6,13 +5,7 @@ from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from api.dependencies import get_session
-from logic.air_quality_service import (
-    get_best_cities,
-    get_city_aqi_history,
-    get_city_average_aqi,
-    get_measurements,
-    upload_air_quality_data,
-)
+from logic.air_quality_service import AirQualityService
 from response_schemas.air_quality import (
     AirQualityResponse,
     CityAverageResponse,
@@ -32,8 +25,9 @@ def read_measurements(
     start_date: date | None = None,
     end_date: date | None = None,
 ) -> list[AirQualityResponse]:
-    return get_measurements(
-        session,
+    service = AirQualityService(session)
+
+    return service.get_measurements(
         city=city,
         start_date=start_date,
         end_date=end_date,
@@ -48,7 +42,9 @@ def read_city_aqi_history(
     city: str,
     session: Annotated[Session, Depends(get_session)],
 ) -> list[AirQualityResponse]:
-    return get_city_aqi_history(session, city)
+    service = AirQualityService(session)
+
+    return service.get_city_aqi_history(city)
 
 
 @router.get(
@@ -59,7 +55,8 @@ def read_city_average_aqi(
     city: str,
     session: Annotated[Session, Depends(get_session)],
 ) -> CityAverageResponse:
-    city_name, average_aqi = get_city_average_aqi(session, city)
+    service = AirQualityService(session)
+    city_name, average_aqi = service.get_city_average_aqi(city)
 
     return CityAverageResponse(
         city=city_name,
@@ -74,10 +71,13 @@ def read_city_average_aqi(
 def read_best_cities(
     session: Annotated[Session, Depends(get_session)],
 ) -> list[CityAverageResponse]:
+    service = AirQualityService(session)
+
     return [
         CityAverageResponse(city=city, average_aqi=average_aqi)
-        for city, average_aqi in get_best_cities(session)
+        for city, average_aqi in service.get_best_cities()
     ]
+
 
 @router.post(
     "/upload",
@@ -87,4 +87,6 @@ def upload_measurements(
     file: Annotated[UploadFile, File()],
     session: Annotated[Session, Depends(get_session)],
 ) -> UploadResponse:
-    return upload_air_quality_data(session, file.file)
+    service = AirQualityService(session)
+
+    return service.upload_air_quality_data(file.file)

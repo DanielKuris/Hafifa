@@ -28,6 +28,7 @@ add-bounds = "exact"
 [tool.pytest.ini_options]
 pythonpath = [".", "src"]
 testpaths = ["tests"]
+addopts = "--import-mode=importlib"
 
 [tool.ruff.lint]
 ignore = ["B008"]

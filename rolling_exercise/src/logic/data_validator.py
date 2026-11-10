@@ -1,10 +1,10 @@
-
 import logging
 import math
 from datetime import date
-from logic.exceptions import InvalidCSVError
 
 import pandas as pd
+
+from logic.exceptions import InvalidCSVError
 
 logger = logging.getLogger(__name__)
 
