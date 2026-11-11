@@ -10,6 +10,7 @@ from logic.exceptions import NoRecordsFoundError
 from logic.read_csv_and_prepare_measurements import (
     read_csv_and_prepare_measurements,
 )
+from response_schemas.air_quality import AirQualityUploadResponse
 
 logger = logging.getLogger(__name__)
 
@@ -23,16 +24,12 @@ class AirQualityService:
         self.repository = repository
         self.session = session
 
-    def upload_air_quality_data(self, file: BinaryIO) -> dict[str, int]:
+    def upload_air_quality_data(
+        self,
+        file: BinaryIO,
+    ) -> AirQualityUploadResponse:
         measurements_dataframe, alerts_dataframe, ignored_rows = (
             read_csv_and_prepare_measurements(file)
-        )
-
-        measurements_dataframe = measurements_dataframe.rename(
-            columns={
-                "aqi_value": "aqi",
-                "aqi_description": "aqi_level",
-            }
         )
 
         with self.session.begin():
@@ -55,19 +52,23 @@ class AirQualityService:
             if not alerts_dataframe.empty:
                 self.repository.insert_alerts(alerts_dataframe)
 
+        inserted_rows = len(measurements_dataframe)
+        alerts_created = len(alerts_dataframe)
+        total_rows = inserted_rows + ignored_rows
+
         logger.info(
-            f"Processed {len(measurements_dataframe) + ignored_rows} CSV rows: "
-            f"inserted {len(measurements_dataframe)} measurements, "
+            f"Processed {total_rows} CSV rows: "
+            f"inserted {inserted_rows} measurements, "
             f"ignored {ignored_rows} rows, "
-            f"created {len(alerts_dataframe)} alerts"
+            f"created {alerts_created} alerts"
         )
 
-        return {
-            "total_rows": len(measurements_dataframe) + ignored_rows,
-            "inserted_rows": len(measurements_dataframe),
-            "ignored_rows": ignored_rows,
-            "alerts_created": len(alerts_dataframe),
-        }
+        return AirQualityUploadResponse(
+            total_rows=total_rows,
+            inserted_rows=inserted_rows,
+            ignored_rows=ignored_rows,
+            alerts_created=alerts_created,
+        )
 
     def get_measurements(
         self,
@@ -93,4 +94,9 @@ class AirQualityService:
         return city, average_aqi
 
     def get_best_cities(self) -> list[tuple[str, float]]:
-        return self.repository.get_best_cities()
+        best_cities = self.repository.get_best_cities()
+
+        if not best_cities:
+            raise NoRecordsFoundError("No city records found.")
+
+        return best_cities

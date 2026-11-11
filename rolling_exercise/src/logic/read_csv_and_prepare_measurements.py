@@ -8,6 +8,7 @@ from data.csv_reader import read_csv
 from logic.calculate_aqi import calculate_aqi
 from logic.data_validator import validate_dataframe
 from logic.exceptions import NoValidRowsError
+from response_schemas.air_quality import AirQualityResponse
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ def read_csv_and_prepare_measurements(
     dataframe = read_csv(file)
 
     if dataframe.empty:
-        raise pd.error.EmptyDataError("CSV file contains no data rows")
+        raise NoValidRowsError("CSV file contains no data rows")
 
     dataframe, ignored_rows = validate_dataframe(dataframe)
 
@@ -28,49 +29,17 @@ def read_csv_and_prepare_measurements(
     if ignored_rows:
         logger.info(f"Ignored {ignored_rows} invalid CSV rows")
 
-    measurements_dataframe = prepare_measurements(dataframe)
-    alerts_dataframe = create_alerts_dataframe(measurements_dataframe)
+    dataframe["aqi"], dataframe["aqi_level"] = calculate_aqi(dataframe)
 
-    return measurements_dataframe, alerts_dataframe, ignored_rows
-
-
-def prepare_measurements(dataframe: pd.DataFrame) -> pd.DataFrame:
-    dataframe = dataframe.rename(
-        columns={
-            "PM2.5": "pm25",
-            "NO2": "no2",
-            "CO2": "co2",
-        }
-    ).copy()
-
-    dataframe["date"] = pd.to_datetime(
-        dataframe["date"],
-        format="%Y-%m-%d",
-    ).dt.date
-
-    dataframe["aqi_value"], dataframe["aqi_description"] = calculate_aqi(dataframe)
-
-    return dataframe[
-        [
-            "date",
-            "city",
-            "pm25",
-            "no2",
-            "co2",
-            "aqi_value",
-            "aqi_description",
-        ]
+    measurement_columns = [
+        field for field in AirQualityResponse.model_fields if field != "id"
     ]
 
+    dataframe = dataframe[measurement_columns]
 
-def create_alerts_dataframe(
-    measurements_dataframe: pd.DataFrame,
-) -> pd.DataFrame:
-    return (
-        measurements_dataframe.loc[
-            measurements_dataframe["aqi_value"] > settings.AQI_ALERT_THRESHOLD,
-            ["date", "city", "aqi_value"],
-        ]
-        .rename(columns={"aqi_value": "aqi"})
-        .copy()
-    )
+    alerts_dataframe = dataframe.loc[
+        dataframe["aqi"] > settings.AQI_ALERT_THRESHOLD,
+        ["date", "city", "aqi"],
+    ]
+
+    return dataframe, alerts_dataframe, ignored_rows

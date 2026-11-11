@@ -19,3 +19,10 @@ class AirQualityResponse(BaseModel):
 class CityAverageResponse(BaseModel):
     city: str
     average_aqi: float
+
+
+class AirQualityUploadResponse(BaseModel):
+    total_rows: int
+    inserted_rows: int
+    ignored_rows: int
+    alerts_created: int

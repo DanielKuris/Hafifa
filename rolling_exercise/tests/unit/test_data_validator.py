@@ -1,4 +1,3 @@
-
 import logging
 from datetime import date, timedelta
 
@@ -111,6 +110,7 @@ def test_validate_dataframe_future_dates(
     assert len(result) == 3
     assert ignored_rows == 1
     assert result["city"].tolist() == ["Jerusalem", "Haifa", "Eilat"]
+
 
 def test_validate_dataframe_invalid_cities(
     valid_dataframe: pd.DataFrame,

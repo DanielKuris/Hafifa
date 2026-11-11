@@ -1,8 +1,8 @@
-class AirQualityError(Exception):
+class ApplicationError(Exception):
     pass
 
 
-class CSVProcessingError(AirQualityError):
+class CSVProcessingError(ApplicationError):
     pass
 
 
@@ -14,5 +14,5 @@ class NoValidRowsError(CSVProcessingError):
     pass
 
 
-class NoRecordsFoundError(AirQualityError):
+class NoRecordsFoundError(ApplicationError):
     pass

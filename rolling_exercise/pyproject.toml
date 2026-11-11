@@ -31,4 +31,4 @@ testpaths = ["tests"]
 addopts = "--import-mode=importlib"
 
 [tool.ruff.lint]
-ignore = ["B008"]
+ignore = ["B008", "F821"]

@@ -16,7 +16,7 @@ def handle_measurement_not_found(
     return JSONResponse(
         status_code=status,
         content=ErrorResponse(
-            error=status.phrase,
+            errtype=status.phrase,
             message=str(exc),
         ).model_dump(),
     )
