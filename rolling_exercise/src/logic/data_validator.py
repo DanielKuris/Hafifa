@@ -4,7 +4,7 @@ from datetime import date
 
 import pandas as pd
 
-from logic.exceptions import InvalidCSVError
+from logic.exceptions import ColumnsMismatchError
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ def validate_required_fields(dataframe: pd.DataFrame) -> None:
     missing_fields = REQUIRED_FIELDS.difference(dataframe.columns)
 
     if missing_fields:
-        raise InvalidCSVError(
+        raise ColumnsMismatchError(
             f"CSV is missing required columns: {', '.join(sorted(missing_fields))}"
         )
 

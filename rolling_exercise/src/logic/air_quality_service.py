@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from data.repository import AirQualityRepository
 from database.models.air_quality import AirQuality
-from logic.exceptions import MeasurementNotFoundError
+from logic.exceptions import NoRecordsFoundError
 from logic.read_csv_and_prepare_measurements import (
     read_csv_and_prepare_measurements,
 )
@@ -15,8 +15,12 @@ logger = logging.getLogger(__name__)
 
 
 class AirQualityService:
-    def __init__(self, session: Session) -> None:
-        self.repository = AirQualityRepository(session)
+    def __init__(
+        self,
+        repository: AirQualityRepository,
+        session: Session,
+    ) -> None:
+        self.repository = repository
         self.session = session
 
     def upload_air_quality_data(self, file: BinaryIO) -> dict[str, int]:
@@ -48,7 +52,8 @@ class AirQualityService:
                 measurement_id=alerts_dataframe.index.map(measurement_ids_by_index)
             )
 
-            self.repository.insert_alerts(alerts_dataframe)
+            if not alerts_dataframe.empty:
+                self.repository.insert_alerts(alerts_dataframe)
 
         logger.info(
             f"Processed {len(measurements_dataframe) + ignored_rows} CSV rows: "
@@ -83,11 +88,9 @@ class AirQualityService:
         average_aqi = self.repository.get_city_average_aqi(city)
 
         if average_aqi is None:
-            raise MeasurementNotFoundError(f"No measurements found for city '{city}'.")
+            raise NoRecordsFoundError(f"No records found for city '{city}'.")
 
         return city, average_aqi
 
     def get_best_cities(self) -> list[tuple[str, float]]:
-        results = self.repository.get_best_cities()
-
-        return results
+        return self.repository.get_best_cities()

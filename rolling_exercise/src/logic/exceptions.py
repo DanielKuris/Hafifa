@@ -6,7 +6,7 @@ class CSVProcessingError(AirQualityError):
     pass
 
 
-class InvalidCSVError(CSVProcessingError):
+class ColumnsMismatchError(CSVProcessingError):
     pass
 
 
@@ -14,5 +14,5 @@ class NoValidRowsError(CSVProcessingError):
     pass
 
 
-class MeasurementNotFoundError(AirQualityError):
+class NoRecordsFoundError(AirQualityError):
     pass

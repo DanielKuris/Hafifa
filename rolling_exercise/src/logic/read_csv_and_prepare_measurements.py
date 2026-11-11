@@ -17,6 +17,9 @@ def read_csv_and_prepare_measurements(
 ) -> tuple[pd.DataFrame, pd.DataFrame, int]:
     dataframe = read_csv(file)
 
+    if dataframe.empty:
+        raise pd.error.EmptyDataError("CSV file contains no data rows")
+
     dataframe, ignored_rows = validate_dataframe(dataframe)
 
     if dataframe.empty:

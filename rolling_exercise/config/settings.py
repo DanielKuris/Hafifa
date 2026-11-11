@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     )
 
     DATABASE_URL: PostgresDsn
-    TEST_DATABASE_URL: PostgresDsn | None = None
     AQI_ALERT_THRESHOLD: float = 300.0
+    LIMIT_BEST_CITIES: int = 3
 
 
 settings = Settings()

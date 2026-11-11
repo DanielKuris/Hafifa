@@ -4,6 +4,7 @@ import pandas as pd
 from sqlalchemy import func, insert, select
 from sqlalchemy.orm import Session
 
+from config.settings import settings
 from database.models.air_quality import AirQuality
 from database.models.alert import Alert
 
@@ -23,9 +24,6 @@ class AirQualityRepository:
         return list(self.session.scalars(statement, records).all())
 
     def insert_alerts(self, dataframe: pd.DataFrame) -> None:
-        if dataframe.empty:
-            return
-
         records = dataframe.to_dict(orient="records")
 
         statement = insert(Alert)
@@ -60,7 +58,9 @@ class AirQualityRepository:
 
         return float(average_aqi) if average_aqi is not None else None
 
-    def get_best_cities(self, limit: int = 3) -> list[tuple[str, float]]:
+    def get_best_cities(
+        self, limit: int = settings.LIMIT_BEST_CITIES
+    ) -> list[tuple[str, float]]:
         average_aqi = func.avg(AirQuality.aqi).label("average_aqi")
 
         statement = (
