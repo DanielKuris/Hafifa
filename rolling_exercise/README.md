@@ -105,3 +105,14 @@ You will calculate it using a given function "calculate_aqi(pm25, no2, co2)" tha
 
 
 ## Good Luck! (:
+
+
+## My Implementation 
+
+- **API Routing:** Organized endpoints into separate routers for air quality data and alerts data.
+- **Database:** Used PostgreSQL with SQLAlchemy ORM models to define and manage the database tables.
+- **Connection Management:** Configured a SQLAlchemy engine with connection pooling and a session factory to manage database sessions.
+- **Repository Layer:** Implemented a repository class to centralize database operations and queries.
+- **Service Layer:** Separated business logic from API routes and database operations using dedicated service modules.
+- **Data Duplications:** Duplicate measurements are intentionally preserved as separate database rows.
+- **Data Processing:** Used Pandas to validate, clean, and process CSV data before inserting measurements and generating alerts.
