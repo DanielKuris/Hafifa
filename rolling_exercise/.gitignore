@@ -5,3 +5,5 @@ __pycache__/
 .venv/
 .pytest_cache/
 .ruff_cache/
+tests/allure-results/
+tests/air_quality_report/

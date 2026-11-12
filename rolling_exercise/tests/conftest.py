@@ -1,7 +1,16 @@
-from collections.abc import Generator
 
+import inspect
+from collections.abc import Generator
+from pprint import pformat
+from unittest.mock import Mock
+
+import allure
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
+from pygments import highlight
+from pygments.formatters import HtmlFormatter
+from pygments.lexers import PythonLexer
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import Session
@@ -12,6 +21,7 @@ from main import app
 
 
 @pytest.fixture(scope="session")
+@allure.title("Create test database engine")
 def test_engine() -> Generator[Engine]:
     if settings.TEST_DATABASE_URL is None:
         raise RuntimeError("TEST_DATABASE_URL is not configured")
@@ -33,6 +43,7 @@ def test_engine() -> Generator[Engine]:
 
 
 @pytest.fixture
+@allure.title("Create isolated test database session")
 def db_session(test_engine: Engine) -> Generator[Session]:
     connection = test_engine.connect()
     transaction = connection.begin()
@@ -50,6 +61,7 @@ def db_session(test_engine: Engine) -> Generator[Session]:
 
 
 @pytest.fixture
+@allure.title("Create FastAPI test client")
 def client(db_session: Session) -> Generator[TestClient]:
     def override_get_session() -> Generator[Session]:
         yield db_session
@@ -60,3 +72,54 @@ def client(db_session: Session) -> Generator[TestClient]:
         yield test_client
 
     app.dependency_overrides.pop(get_session, None)
+
+
+def format_fixture_value(value: object) -> str | None:
+    if isinstance(value, (Engine, Session, TestClient, Mock)):
+        return None
+
+    if isinstance(value, pd.DataFrame):
+        return value.to_string()
+
+    return pformat(value, sort_dicts=False)
+
+
+@pytest.fixture(autouse=True)
+def attach_test_details(request: pytest.FixtureRequest) -> None:
+    try:
+        source = inspect.getsource(request.function)
+    except (OSError, TypeError):
+        source = None
+
+    if source is not None:
+        highlighted_source = highlight(
+            source,
+            PythonLexer(),
+           HtmlFormatter(
+                full=True,
+                linenos="table",
+                style="native",
+            ),
+        )
+
+        allure.attach(
+            highlighted_source,
+            name="Test source code",
+            attachment_type=allure.attachment_type.HTML,
+        )
+
+    for fixture_name in inspect.signature(request.function).parameters:
+        if fixture_name == "request":
+            continue
+
+        fixture_value = request.getfixturevalue(fixture_name)
+        formatted_value = format_fixture_value(fixture_value)
+
+        if formatted_value is None:
+            continue
+
+        allure.attach(
+            formatted_value,
+            name=f"Fixture: {fixture_name}",
+            attachment_type=allure.attachment_type.TEXT,
+        )

@@ -19,7 +19,7 @@ def validate_dataframe(dataframe: pd.DataFrame) -> tuple[pd.DataFrame, int]:
     }
 
     validate_required_fields(dataframe, column_mapping)
-    dataframe.rename(columns=column_mapping, inplace=True)
+    dataframe = dataframe.rename(columns=column_mapping)
 
     valid = validate_dates(dataframe)
     valid &= validate_cities(dataframe)
@@ -28,7 +28,7 @@ def validate_dataframe(dataframe: pd.DataFrame) -> tuple[pd.DataFrame, int]:
     ignored_rows = int((~valid).sum())
     log_invalid_rows(valid)
 
-    dataframe.drop(index=dataframe.index[~valid], inplace=True)
+    dataframe = dataframe.loc[valid]
 
     return dataframe, ignored_rows
 
@@ -63,13 +63,16 @@ def validate_required_fields(
 
 
 def validate_dates(dataframe: pd.DataFrame) -> pd.Series:
-    dataframe["date"] = pd.to_datetime(
+    dates = pd.to_datetime(
         dataframe["date"],
         format="%Y-%m-%d",
         errors="coerce",
-    ).dt.date
+    )
 
-    return dataframe["date"].notna() & dataframe["date"].le(date.today())
+    valid = dates.notna() & dates.le(pd.Timestamp(date.today()))
+    dataframe["date"] = dates.dt.date
+
+    return valid
 
 
 def validate_cities(dataframe: pd.DataFrame) -> pd.Series:
