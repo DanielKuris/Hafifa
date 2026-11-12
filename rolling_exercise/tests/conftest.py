@@ -1,4 +1,3 @@
-
 import inspect
 from collections.abc import Generator
 from pprint import pformat
@@ -23,10 +22,10 @@ from main import app
 @pytest.fixture(scope="session")
 @allure.title("Create test database engine")
 def test_engine() -> Generator[Engine]:
-    if settings.TEST_DATABASE_URL is None:
-        raise RuntimeError("TEST_DATABASE_URL is not configured")
+    if settings.DATABASE_URL is None:
+        raise RuntimeError("DATABASE_URL is not configured")
 
-    database_url = str(settings.TEST_DATABASE_URL)
+    database_url = str(settings.DATABASE_URL)
     database_name = make_url(database_url).database
 
     if database_name != "air_quality_test_db":
@@ -88,14 +87,14 @@ def format_fixture_value(value: object) -> str | None:
 def attach_test_details(request: pytest.FixtureRequest) -> None:
     try:
         source = inspect.getsource(request.function)
-    except (OSError, TypeError):
+    except OSError, TypeError:
         source = None
 
     if source is not None:
         highlighted_source = highlight(
             source,
             PythonLexer(),
-           HtmlFormatter(
+            HtmlFormatter(
                 full=True,
                 linenos="table",
                 style="native",

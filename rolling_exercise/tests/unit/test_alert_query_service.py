@@ -1,4 +1,3 @@
-
 from datetime import date
 from unittest.mock import MagicMock
 
@@ -34,20 +33,17 @@ def test_get_alerts_with_filters(
 
     repository.get_alerts.return_value = expected_alerts
 
-    with allure.step("Retrieve alerts for the specified city and date"):
-        result = service.get_alerts(
-            city="Tel Aviv",
-            alert_date=alert_date,
-        )
+    result = service.get_alerts(
+        city="Tel Aviv",
+        alert_date=alert_date,
+    )
 
-    with allure.step("Verify the returned alerts"):
-        assert result == expected_alerts
+    assert result == expected_alerts
 
-    with allure.step("Verify the repository received the correct filters"):
-        repository.get_alerts.assert_called_once_with(
-            city="Tel Aviv",
-            alert_date=alert_date,
-        )
+    repository.get_alerts.assert_called_once_with(
+        city="Tel Aviv",
+        alert_date=alert_date,
+    )
 
 
 @allure.feature("Alerts Service")
@@ -59,14 +55,11 @@ def test_get_alerts_without_filters(
 ) -> None:
     repository.get_alerts.return_value = []
 
-    with allure.step("Retrieve alerts without filters"):
-        result = service.get_alerts()
+    result = service.get_alerts()
 
-    with allure.step("Verify the returned result is empty"):
-        assert result == []
+    assert result == []
 
-    with allure.step("Verify the repository received no filters"):
-        repository.get_alerts.assert_called_once_with(
-            city=None,
-            alert_date=None,
-        )
+    repository.get_alerts.assert_called_once_with(
+        city=None,
+        alert_date=None,
+    )

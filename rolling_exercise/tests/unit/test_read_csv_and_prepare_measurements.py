@@ -1,8 +1,6 @@
-
 import logging
 from datetime import date
 from io import BytesIO
-from typing import Any
 
 import allure
 import pandas as pd
@@ -47,9 +45,8 @@ def test_empty_csv_raises_error(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda file: pd.DataFrame(),
     )
 
-    with allure.step("Process an empty CSV file"):
-        with pytest.raises(NoValidRowsError, match="contains no data rows"):
-            processor.read_csv_and_prepare_measurements(BytesIO())
+    with pytest.raises(NoValidRowsError, match="contains no data rows"):
+        processor.read_csv_and_prepare_measurements(BytesIO())
 
 
 @allure.feature("Data Processing")
@@ -70,12 +67,11 @@ def test_no_valid_rows_raises_error(
         lambda dataframe: (dataframe.iloc[0:0], len(dataframe)),
     )
 
-    with allure.step("Process a CSV with no valid rows"):
-        with pytest.raises(
-            NoValidRowsError,
-            match="contains no valid measurement rows",
-        ):
-            processor.read_csv_and_prepare_measurements(BytesIO())
+    with pytest.raises(
+        NoValidRowsError,
+        match="contains no valid measurement rows",
+    ):
+        processor.read_csv_and_prepare_measurements(BytesIO())
 
 
 @allure.feature("Data Processing")
@@ -87,9 +83,7 @@ def test_prepare_measurements(
 ) -> None:
     ignored_rows = 2
     aqi_values = pd.Series([50.0, 150.0, 300.0, 80.0])
-    aqi_levels = pd.Series(
-        ["Good", "Unhealthy", "Very Unhealthy", "Moderate"]
-    )
+    aqi_levels = pd.Series(["Good", "Unhealthy", "Very Unhealthy", "Moderate"])
 
     monkeypatch.setattr(
         processor,
@@ -108,36 +102,28 @@ def test_prepare_measurements(
     )
     monkeypatch.setattr(processor.settings, "AQI_ALERT_THRESHOLD", 100)
 
-    with allure.step("Process the CSV and calculate AQI"):
-        measurements, alerts, actual_ignored_rows = (
-            processor.read_csv_and_prepare_measurements(BytesIO())
-        )
+    measurements, alerts, actual_ignored_rows = (
+        processor.read_csv_and_prepare_measurements(BytesIO())
+    )
 
-    with allure.step("Verify the prepared measurement columns"):
-        expected_columns = [
-            field
-            for field in AirQualityResponse.model_fields
-            if field != "id"
-        ]
+    expected_columns = [
+        field for field in AirQualityResponse.model_fields if field != "id"
+    ]
 
-        assert measurements.columns.tolist() == expected_columns
+    assert measurements.columns.tolist() == expected_columns
+    assert measurements["aqi"].tolist() == [50.0, 150.0, 300.0, 80.0]
+    assert measurements["aqi_level"].tolist() == [
+        "Good",
+        "Unhealthy",
+        "Very Unhealthy",
+        "Moderate",
+    ]
 
-    with allure.step("Verify calculated AQI values and levels"):
-        assert measurements["aqi"].tolist() == [50.0, 150.0, 300.0, 80.0]
-        assert measurements["aqi_level"].tolist() == [
-            "Good",
-            "Unhealthy",
-            "Very Unhealthy",
-            "Moderate",
-        ]
+    assert alerts.columns.tolist() == ["date", "city", "aqi"]
+    assert alerts["city"].tolist() == ["Jerusalem", "Haifa"]
+    assert alerts["aqi"].tolist() == [150.0, 300.0]
 
-    with allure.step("Verify that only measurements above the threshold create alerts"):
-        assert alerts.columns.tolist() == ["date", "city", "aqi"]
-        assert alerts["city"].tolist() == ["Jerusalem", "Haifa"]
-        assert alerts["aqi"].tolist() == [150.0, 300.0]
-
-    with allure.step("Verify the number of ignored rows"):
-        assert actual_ignored_rows == ignored_rows
+    assert actual_ignored_rows == ignored_rows
 
 
 @allure.feature("Data Processing")
@@ -167,9 +153,7 @@ def test_logs_ignored_rows(
         ),
     )
 
-    with allure.step("Process the CSV and capture informational logs"):
-        with caplog.at_level(logging.INFO, logger=processor.__name__):
-            processor.read_csv_and_prepare_measurements(BytesIO())
+    with caplog.at_level(logging.INFO, logger=processor.__name__):
+        processor.read_csv_and_prepare_measurements(BytesIO())
 
-    with allure.step("Verify the ignored-row summary"):
-        assert "Ignored 2 invalid CSV rows" in caplog.text
+    assert "Ignored 2 invalid CSV rows" in caplog.text
