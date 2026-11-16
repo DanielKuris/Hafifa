@@ -1,5 +1,7 @@
+
 import inspect
 from collections.abc import Generator
+from datetime import date
 from pprint import pformat
 from unittest.mock import Mock
 
@@ -14,9 +16,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import Session
 
-from api.dependencies import get_session
 from config.settings import settings
 from main import app
+from api.dependencies import get_session
+from data.repository import AirQualityRepository
+from logic.alert_query_service import AlertService
+from logic.air_quality_service import AirQualityService
 
 
 @pytest.fixture(scope="session")
@@ -52,11 +57,12 @@ def db_session(test_engine: Engine) -> Generator[Session]:
         join_transaction_mode="create_savepoint",
     )
 
-    yield session
-
-    session.close()
-    transaction.rollback()
-    connection.close()
+    try:
+        yield session
+    finally:
+        session.close()
+        transaction.rollback()
+        connection.close()
 
 
 @pytest.fixture
@@ -67,14 +73,223 @@ def client(db_session: Session) -> Generator[TestClient]:
 
     app.dependency_overrides[get_session] = override_get_session
 
-    with TestClient(app) as test_client:
-        yield test_client
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        app.dependency_overrides.pop(get_session, None)
 
-    app.dependency_overrides.pop(get_session, None)
+
+@pytest.fixture
+@allure.title("Create air quality repository")
+def repository(db_session: Session) -> AirQualityRepository:
+    return AirQualityRepository(db_session)
+
+
+@pytest.fixture
+@allure.title("Create air quality service")
+def air_quality_service(
+    repository: AirQualityRepository,
+    db_session: Session,
+) -> AirQualityService:
+    return AirQualityService(repository, db_session)
+
+
+@pytest.fixture
+@allure.title("Create alert service")
+def alert_service(repository: AirQualityRepository) -> AlertService:
+    return AlertService(repository)
+
+@pytest.fixture
+@allure.title("Prepare CSV upload data")
+def sample_csv(measurement_dataframe: pd.DataFrame) -> bytes:
+    csv_dataframe = measurement_dataframe[
+        ["date", "city", "pm25", "no2", "co2"]
+    ].rename(
+        columns={
+            "pm25": "PM2.5",
+            "no2": "NO2",
+            "co2": "CO2",
+        }
+    )
+
+    return csv_dataframe.to_csv(index=False).encode("utf-8")
+
+@pytest.fixture
+@allure.title("Prepare measurement data")
+def measurement_dataframe() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "date": date(2025, 1, 3),
+                "city": "Amsterdam",
+                "pm25": 10.0,
+                "no2": 10.0,
+                "co2": 10.0,
+                "aqi": 10,
+                "aqi_level": "Good",
+            },
+            {
+                "date": date(2025, 1, 3),
+                "city": "Amsterdam",
+                "pm25": 20.0,
+                "no2": 20.0,
+                "co2": 20.0,
+                "aqi": 20,
+                "aqi_level": "Good",
+            },
+            {
+                "date": date(2025, 1, 1),
+                "city": "Berlin",
+                "pm25": 30.0,
+                "no2": 30.0,
+                "co2": 30.0,
+                "aqi": 30,
+                "aqi_level": "Moderate",
+            },
+            {
+                "date": date(2025, 1, 2),
+                "city": "Amsterdam",
+                "pm25": 40.0,
+                "no2": 40.0,
+                "co2": 40.0,
+                "aqi": 40,
+                "aqi_level": "Moderate",
+            },
+            {
+                "date": date(2025, 1, 4),
+                "city": "Cairo",
+                "pm25": 50.0,
+                "no2": 50.0,
+                "co2": 50.0,
+                "aqi": 50,
+                "aqi_level": "Moderate",
+            },
+            {
+                "date": date(2025, 1, 5),
+                "city": "Delhi",
+                "pm25": 60.0,
+                "no2": 60.0,
+                "co2": 60.0,
+                "aqi": settings.AQI_ALERT_THRESHOLD + 10,
+                "aqi_level": "Hazardous",
+            },
+            {
+                "date": date(2025, 1, 5),
+                "city": "Delhi",
+                "pm25": 70.0,
+                "no2": 70.0,
+                "co2": 70.0,
+                "aqi": settings.AQI_ALERT_THRESHOLD + 20,
+                "aqi_level": "Hazardous",
+            },
+            {
+                "date": date(2025, 1, 6),
+                "city": "Cairo",
+                "pm25": 80.0,
+                "no2": 80.0,
+                "co2": 80.0,
+                "aqi": 80,
+                "aqi_level": "Moderate",
+            },
+            {
+                "date": date(2025, 1, 7),
+                "city": "Mumbai",
+                "pm25": 90.0,
+                "no2": 90.0,
+                "co2": 90.0,
+                "aqi": settings.AQI_ALERT_THRESHOLD + 30,
+                "aqi_level": "Hazardous",
+            },
+            {
+                "date": date(2025, 1, 7),
+                "city": "Mumbai",
+                "pm25": 100.0,
+                "no2": 100.0,
+                "co2": 100.0,
+                "aqi": settings.AQI_ALERT_THRESHOLD + 40,
+                "aqi_level": "Hazardous",
+            },
+        ]
+    )
+
+@pytest.fixture
+@allure.title("Prepare CSV DataFrame with original column names")
+def csv_dataframe(measurement_dataframe: pd.DataFrame) -> pd.DataFrame:
+    return measurement_dataframe[
+        ["date", "city", "pm25", "no2", "co2"]
+    ].assign(
+        date=lambda dataframe: dataframe["date"].astype(str)
+    ).rename(
+        columns={
+            "pm25": "PM2.5",
+            "no2": "NO2",
+            "co2": "CO2",
+        }
+    )
+
+
+def _create_alert_dataframe(
+    measurement_dataframe: pd.DataFrame,
+    measurement_ids: list[int],
+) -> pd.DataFrame:
+    records = [
+        {
+            "date": record["date"],
+            "city": record["city"],
+            "aqi": record["aqi"],
+            "measurement_id": measurement_id,
+        }
+        for record, measurement_id in zip(
+            measurement_dataframe.to_dict(orient="records"),
+            measurement_ids,
+            strict=True,
+        )
+        if record["aqi"] > settings.AQI_ALERT_THRESHOLD
+    ]
+
+    return pd.DataFrame(records)
+
+
+@pytest.fixture
+@allure.title("Populate database with air quality measurements")
+def populated_repository(
+    repository: AirQualityRepository,
+    measurement_dataframe: pd.DataFrame,
+) -> AirQualityRepository:
+    repository.insert_measurements(measurement_dataframe)
+
+    return repository
+
+
+@pytest.fixture
+@allure.title("Populate database with measurements and alerts")
+def populated_repository_with_alerts(
+    repository: AirQualityRepository,
+    measurement_dataframe: pd.DataFrame,
+) -> AirQualityRepository:
+    measurement_ids = repository.insert_measurements(measurement_dataframe)
+    alerts_dataframe = _create_alert_dataframe(
+        measurement_dataframe,
+        measurement_ids,
+    )
+    repository.insert_alerts(alerts_dataframe)
+
+    return repository
 
 
 def format_fixture_value(value: object) -> str | None:
-    if isinstance(value, (Engine, Session, TestClient, Mock)):
+    excluded_types = (
+        Engine,
+        Session,
+        TestClient,
+        Mock,
+        AirQualityRepository,
+        AirQualityService,
+        AlertService,
+    )
+
+    if isinstance(value, excluded_types):
         return None
 
     if isinstance(value, pd.DataFrame):
@@ -87,7 +302,7 @@ def format_fixture_value(value: object) -> str | None:
 def attach_test_details(request: pytest.FixtureRequest) -> None:
     try:
         source = inspect.getsource(request.function)
-    except OSError, TypeError:
+    except (OSError, TypeError):
         source = None
 
     if source is not None:

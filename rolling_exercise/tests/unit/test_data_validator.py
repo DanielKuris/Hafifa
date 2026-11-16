@@ -1,3 +1,4 @@
+
 import logging
 from datetime import date, timedelta
 
@@ -9,108 +10,71 @@ from logic.data_validator import validate_dataframe
 from logic.exceptions import ColumnsMismatchError
 
 
-@pytest.fixture
-@allure.title("Valid CSV DataFrame with original column names")
-def valid_dataframe() -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "date": [
-                "2026-11-08",
-                "2026-11-09",
-                "2026-11-10",
-                "2026-11-11",
-            ],
-            "city": [
-                "Tel Aviv",
-                "Jerusalem",
-                "Haifa",
-                "Eilat",
-            ],
-            "PM2.5": [12.5, 20.0, 15.0, 8.0],
-            "NO2": [15.0, 25.0, 18.0, 10.0],
-            "CO2": [300.0, 400.0, 350.0, 250.0],
-        }
-    )
-
-
-@allure.feature("Data Validation")
 @allure.story("Data Normalization")
 @allure.title("Successfully validate and normalize all valid rows")
 def test_validate_dataframe_all_valid(
-    valid_dataframe: pd.DataFrame,
+    measurement_dataframe: pd.DataFrame,
+    csv_dataframe: pd.DataFrame,
 ) -> None:
-    result, ignored_rows = validate_dataframe(valid_dataframe)
+    result, ignored_rows = validate_dataframe(csv_dataframe)
 
-    assert len(result) == 4
+    assert len(result) == len(measurement_dataframe)
     assert ignored_rows == 0
 
-    assert result["date"].tolist() == [
-        date(2026, 11, 8),
-        date(2026, 11, 9),
-        date(2026, 11, 10),
-        date(2026, 11, 11),
-    ]
-
-    assert result["city"].tolist() == [
-        "Tel Aviv",
-        "Jerusalem",
-        "Haifa",
-        "Eilat",
-    ]
+    assert result["date"].tolist() == measurement_dataframe["date"].tolist()
+    assert result["city"].tolist() == measurement_dataframe["city"].tolist()
 
     assert result[["pm25", "no2", "co2"]].dtypes.eq("float64").all()
-    assert "PM2.5" not in result.columns
-    assert "NO2" not in result.columns
-    assert "CO2" not in result.columns
+    assert not {"PM2.5", "NO2", "CO2"}.intersection(result.columns)
 
 
-@allure.feature("Data Validation")
 @allure.story("Row Validation")
 @allure.title("Reject all rows containing invalid data")
 def test_validate_dataframe_all_invalid(
-    valid_dataframe: pd.DataFrame,
+    csv_dataframe: pd.DataFrame,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    valid_dataframe["date"] = "invalid"
-    valid_dataframe["city"] = ""
-    valid_dataframe["PM2.5"] = -1
+    dataframe = csv_dataframe.copy()
+    dataframe["date"] = "invalid"
+    dataframe["city"] = ""
 
     with caplog.at_level(logging.WARNING):
-        result, ignored_rows = validate_dataframe(valid_dataframe)
+        result, ignored_rows = validate_dataframe(dataframe)
 
     assert result.empty
-    assert ignored_rows == 4
-    assert caplog.text.count("Skipping CSV row") == 4
+    assert ignored_rows == len(dataframe)
+    assert caplog.text.count("Skipping CSV row") == len(dataframe)
 
 
-@allure.feature("Data Validation")
 @allure.story("Row Validation")
 @allure.title("Accept valid rows and ignore invalid rows")
 def test_validate_dataframe_mixed_validity(
-    valid_dataframe: pd.DataFrame,
+    measurement_dataframe: pd.DataFrame,
+    csv_dataframe: pd.DataFrame,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    valid_dataframe.loc[1, "PM2.5"] = -10
-    valid_dataframe.loc[2, "date"] = "invalid"
+    dataframe = csv_dataframe.copy()
+    dataframe.loc[1, "PM2.5"] = -10
+    dataframe.loc[2, "date"] = "invalid"
 
     with caplog.at_level(logging.WARNING):
-        result, ignored_rows = validate_dataframe(valid_dataframe)
+        result, ignored_rows = validate_dataframe(dataframe)
 
-    assert len(result) == 2
+    expected = measurement_dataframe.drop(index=[1, 2])
+
+    assert len(result) == len(expected)
     assert ignored_rows == 2
-    assert result["city"].tolist() == ["Tel Aviv", "Eilat"]
-    assert result.index.tolist() == [0, 3]
-
+    assert result["city"].tolist() == expected["city"].tolist()
+    assert result.index.tolist() == expected.index.tolist()
     assert caplog.text.count("Skipping CSV row") == 2
 
 
-@allure.feature("Data Validation")
 @allure.story("Required Columns")
 @allure.title("Reject a CSV missing a required column")
 def test_validate_dataframe_missing_required_column(
-    valid_dataframe: pd.DataFrame,
+    csv_dataframe: pd.DataFrame,
 ) -> None:
-    dataframe = valid_dataframe.drop(columns=["PM2.5"])
+    dataframe = csv_dataframe.drop(columns=["PM2.5"])
 
     with pytest.raises(ColumnsMismatchError) as exc_info:
         validate_dataframe(dataframe)
@@ -118,28 +82,27 @@ def test_validate_dataframe_missing_required_column(
     assert "Missing required columns: PM2.5" in str(exc_info.value)
 
 
-@allure.feature("Data Validation")
 @allure.story("Required Columns")
 @allure.title("Reject a CSV containing an unexpected column")
 def test_validate_dataframe_unexpected_column(
-    valid_dataframe: pd.DataFrame,
+    csv_dataframe: pd.DataFrame,
 ) -> None:
-    valid_dataframe["temperature"] = [20, 21, 22, 23]
+    dataframe = csv_dataframe.assign(temperature=20)
 
     with pytest.raises(ColumnsMismatchError) as exc_info:
-        validate_dataframe(valid_dataframe)
+        validate_dataframe(dataframe)
 
     assert "Unexpected columns: temperature" in str(exc_info.value)
 
 
-@allure.feature("Data Validation")
 @allure.story("Required Columns")
 @allure.title("Report missing and unexpected columns together")
 def test_validate_dataframe_missing_and_unexpected_columns(
-    valid_dataframe: pd.DataFrame,
+    csv_dataframe: pd.DataFrame,
 ) -> None:
-    dataframe = valid_dataframe.drop(columns=["PM2.5"])
-    dataframe["temperature"] = [20, 21, 22, 23]
+    dataframe = csv_dataframe.drop(columns=["PM2.5"]).assign(
+        temperature=20
+    )
 
     with pytest.raises(ColumnsMismatchError) as exc_info:
         validate_dataframe(dataframe)
@@ -150,53 +113,61 @@ def test_validate_dataframe_missing_and_unexpected_columns(
     assert "Unexpected columns: temperature" in error_message
 
 
-@allure.feature("Data Validation")
 @allure.story("Row Validation")
 @allure.title("Reject negative, non-numeric, infinite and missing pollutant values")
 def test_validate_dataframe_invalid_pollutant_values(
-    valid_dataframe: pd.DataFrame,
+    csv_dataframe: pd.DataFrame,
 ) -> None:
-    valid_dataframe["NO2"] = valid_dataframe["NO2"].astype(object)
+    dataframe = csv_dataframe.copy()
+    dataframe["NO2"] = dataframe["NO2"].astype(object)
 
-    valid_dataframe.loc[0, "PM2.5"] = -1
-    valid_dataframe.loc[1, "NO2"] = "invalid"
-    valid_dataframe.loc[2, "CO2"] = float("inf")
-    valid_dataframe.loc[3, "PM2.5"] = None
+    dataframe.loc[0, "PM2.5"] = -1
+    dataframe.loc[1, "NO2"] = "invalid"
+    dataframe.loc[2, "CO2"] = float("inf")
+    dataframe.loc[3, "PM2.5"] = None
 
-    result, ignored_rows = validate_dataframe(valid_dataframe)
+    result, ignored_rows = validate_dataframe(dataframe)
 
-    assert result.empty
+    assert len(result) == len(dataframe) - 4
     assert ignored_rows == 4
+    assert result.index.tolist() == list(range(4, len(dataframe)))
 
 
-@allure.feature("Data Validation")
 @allure.story("Row Validation")
 @allure.title("Reject measurements with future dates")
 def test_validate_dataframe_future_dates(
-    valid_dataframe: pd.DataFrame,
+    measurement_dataframe: pd.DataFrame,
+    csv_dataframe: pd.DataFrame,
 ) -> None:
-    future_date = date.today() + timedelta(days=1)
-    valid_dataframe.loc[0, "date"] = future_date.isoformat()
+    dataframe = csv_dataframe.copy()
+    dataframe.loc[0, "date"] = (
+        date.today() + timedelta(days=1)
+    ).isoformat()
 
-    result, ignored_rows = validate_dataframe(valid_dataframe)
+    result, ignored_rows = validate_dataframe(dataframe)
 
-    assert len(result) == 3
+    expected = measurement_dataframe.drop(index=0)
+
+    assert len(result) == len(dataframe) - 1
     assert ignored_rows == 1
-    assert result["city"].tolist() == ["Jerusalem", "Haifa", "Eilat"]
+    assert result["city"].tolist() == expected["city"].tolist()
 
 
-@allure.feature("Data Validation")
 @allure.story("Row Validation")
 @allure.title("Reject missing and empty city names")
 def test_validate_dataframe_invalid_cities(
-    valid_dataframe: pd.DataFrame,
+    measurement_dataframe: pd.DataFrame,
+    csv_dataframe: pd.DataFrame,
 ) -> None:
-    valid_dataframe.loc[0, "city"] = ""
-    valid_dataframe.loc[1, "city"] = "   "
-    valid_dataframe.loc[2, "city"] = None
+    dataframe = csv_dataframe.copy()
+    dataframe.loc[0, "city"] = ""
+    dataframe.loc[1, "city"] = "   "
+    dataframe.loc[2, "city"] = None
 
-    result, ignored_rows = validate_dataframe(valid_dataframe)
+    result, ignored_rows = validate_dataframe(dataframe)
 
-    assert len(result) == 1
+    expected = measurement_dataframe.drop(index=[0, 1, 2])
+
+    assert len(result) == len(dataframe) - 3
     assert ignored_rows == 3
-    assert result["city"].tolist() == ["Eilat"]
+    assert result["city"].tolist() == expected["city"].tolist()

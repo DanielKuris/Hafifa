@@ -1,5 +1,6 @@
+
 import logging
-from datetime import date
+from collections.abc import Callable
 from io import BytesIO
 
 import allure
@@ -7,153 +8,136 @@ import pandas as pd
 import pytest
 
 import logic.read_csv_and_prepare_measurements as processor
+from config.settings import settings
 from logic.exceptions import NoValidRowsError
 from response_schemas.air_quality import AirQualityResponse
 
 
 @pytest.fixture
-@allure.title("Valid normalized measurement DataFrame")
-def valid_dataframe() -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "date": [
-                date(2026, 11, 8),
-                date(2026, 11, 9),
-                date(2026, 11, 10),
-                date(2026, 11, 11),
-            ],
-            "city": [
-                "Tel Aviv",
-                "Jerusalem",
-                "Haifa",
-                "Eilat",
-            ],
-            "pm25": [12.5, 20.0, 15.0, 8.0],
-            "no2": [15.0, 25.0, 18.0, 10.0],
-            "co2": [300.0, 400.0, 350.0, 250.0],
-        }
-    )
+@allure.title("Mock AQI calculation")
+def mock_calculate_aqi(
+    measurement_dataframe: pd.DataFrame,
+) -> Callable[[pd.DataFrame], tuple[pd.Series, pd.Series]]:
+    def calculate_aqi(dataframe: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+        dataframe.columns = [
+            {"PM2.5": "pm25", "NO2": "no2", "CO2": "co2"}.get(column, column)
+            for column in dataframe.columns
+        ]
+
+        return (
+            measurement_dataframe["aqi"],
+            measurement_dataframe["aqi_level"],
+        )
+
+    return calculate_aqi
 
 
-@allure.feature("Data Processing")
 @allure.story("CSV Preparation")
-@allure.title("Reject an empty CSV file")
-def test_empty_csv_raises_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        processor,
-        "read_csv",
-        lambda file: pd.DataFrame(),
-    )
-
-    with pytest.raises(NoValidRowsError, match="contains no data rows"):
-        processor.read_csv_and_prepare_measurements(BytesIO())
+@allure.title("Raise EmptyDataError for an empty CSV file")
+def test_empty_csv_raises_error() -> None:
+    with pytest.raises(pd.errors.EmptyDataError):
+        processor.read_csv_and_prepare_measurements(BytesIO(b""))
 
 
-@allure.feature("Data Processing")
+@allure.story("CSV Preparation")
+@allure.title("Reject a CSV containing only headers")
+def test_headers_only_csv_raises_error(
+    csv_dataframe: pd.DataFrame,
+) -> None:
+    csv_content = csv_dataframe.head(0).to_csv(index=False).encode("utf-8")
+
+    with pytest.raises(NoValidRowsError):
+        processor.read_csv_and_prepare_measurements(BytesIO(csv_content))
+
+
 @allure.story("CSV Preparation")
 @allure.title("Reject a CSV containing no valid measurement rows")
 def test_no_valid_rows_raises_error(
     monkeypatch: pytest.MonkeyPatch,
-    valid_dataframe: pd.DataFrame,
+    csv_dataframe: pd.DataFrame,
 ) -> None:
-    monkeypatch.setattr(
-        processor,
-        "read_csv",
-        lambda file: valid_dataframe,
-    )
     monkeypatch.setattr(
         processor,
         "validate_dataframe",
         lambda dataframe: (dataframe.iloc[0:0], len(dataframe)),
     )
 
+    csv_content = csv_dataframe.to_csv(index=False).encode("utf-8")
+
     with pytest.raises(
         NoValidRowsError,
         match="contains no valid measurement rows",
     ):
-        processor.read_csv_and_prepare_measurements(BytesIO())
+        processor.read_csv_and_prepare_measurements(BytesIO(csv_content))
 
 
-@allure.feature("Data Processing")
 @allure.story("CSV Preparation")
 @allure.title("Prepare measurements and identify alert records")
 def test_prepare_measurements(
     monkeypatch: pytest.MonkeyPatch,
-    valid_dataframe: pd.DataFrame,
+    measurement_dataframe: pd.DataFrame,
+    csv_dataframe: pd.DataFrame,
+    mock_calculate_aqi: Callable[
+        [pd.DataFrame], tuple[pd.Series, pd.Series]
+    ],
 ) -> None:
-    ignored_rows = 2
-    aqi_values = pd.Series([50.0, 150.0, 300.0, 80.0])
-    aqi_levels = pd.Series(["Good", "Unhealthy", "Very Unhealthy", "Moderate"])
-
     monkeypatch.setattr(
         processor,
-        "read_csv",
-        lambda file: valid_dataframe,
+        "validate_dataframe",
+        lambda dataframe: (dataframe, 0),
     )
+    monkeypatch.setattr(processor, "calculate_aqi", mock_calculate_aqi)
+
+    csv_content = csv_dataframe.to_csv(index=False).encode("utf-8")
+
+    measurements, alerts, ignored_rows = (
+        processor.read_csv_and_prepare_measurements(BytesIO(csv_content))
+    )
+
+    expected_measurements = measurement_dataframe.assign(
+        date=measurement_dataframe["date"].astype(str)
+    )
+    expected_alerts = expected_measurements.loc[
+        expected_measurements["aqi"] > settings.AQI_ALERT_THRESHOLD,
+        ["date", "city", "aqi"],
+    ]
+
+    assert measurements.columns.tolist() == [
+        field for field in AirQualityResponse.model_fields if field != "id"
+    ]
+    pd.testing.assert_frame_equal(
+        measurements.reset_index(drop=True),
+        expected_measurements.reset_index(drop=True),
+    )
+    pd.testing.assert_frame_equal(
+        alerts.reset_index(drop=True),
+        expected_alerts.reset_index(drop=True),
+    )
+    assert ignored_rows == 0
+
+
+@allure.story("CSV Preparation")
+@allure.title("Log the number of ignored CSV rows")
+def test_logs_ignored_rows(
+    monkeypatch: pytest.MonkeyPatch,
+    csv_dataframe: pd.DataFrame,
+    mock_calculate_aqi: Callable[
+        [pd.DataFrame], tuple[pd.Series, pd.Series]
+    ],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    ignored_rows = 2
+
     monkeypatch.setattr(
         processor,
         "validate_dataframe",
         lambda dataframe: (dataframe, ignored_rows),
     )
-    monkeypatch.setattr(
-        processor,
-        "calculate_aqi",
-        lambda dataframe: (aqi_values, aqi_levels),
-    )
-    monkeypatch.setattr(processor.settings, "AQI_ALERT_THRESHOLD", 100)
+    monkeypatch.setattr(processor, "calculate_aqi", mock_calculate_aqi)
 
-    measurements, alerts, actual_ignored_rows = (
-        processor.read_csv_and_prepare_measurements(BytesIO())
-    )
-
-    expected_columns = [
-        field for field in AirQualityResponse.model_fields if field != "id"
-    ]
-
-    assert measurements.columns.tolist() == expected_columns
-    assert measurements["aqi"].tolist() == [50.0, 150.0, 300.0, 80.0]
-    assert measurements["aqi_level"].tolist() == [
-        "Good",
-        "Unhealthy",
-        "Very Unhealthy",
-        "Moderate",
-    ]
-
-    assert alerts.columns.tolist() == ["date", "city", "aqi"]
-    assert alerts["city"].tolist() == ["Jerusalem", "Haifa"]
-    assert alerts["aqi"].tolist() == [150.0, 300.0]
-
-    assert actual_ignored_rows == ignored_rows
-
-
-@allure.feature("Data Processing")
-@allure.story("CSV Preparation")
-@allure.title("Log the number of ignored CSV rows")
-def test_logs_ignored_rows(
-    monkeypatch: pytest.MonkeyPatch,
-    valid_dataframe: pd.DataFrame,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    monkeypatch.setattr(
-        processor,
-        "read_csv",
-        lambda file: valid_dataframe,
-    )
-    monkeypatch.setattr(
-        processor,
-        "validate_dataframe",
-        lambda dataframe: (dataframe, 2),
-    )
-    monkeypatch.setattr(
-        processor,
-        "calculate_aqi",
-        lambda dataframe: (
-            pd.Series([50.0, 60.0, 70.0, 80.0]),
-            pd.Series(["Good", "Good", "Good", "Moderate"]),
-        ),
-    )
+    csv_content = csv_dataframe.to_csv(index=False).encode("utf-8")
 
     with caplog.at_level(logging.INFO, logger=processor.__name__):
-        processor.read_csv_and_prepare_measurements(BytesIO())
+        processor.read_csv_and_prepare_measurements(BytesIO(csv_content))
 
-    assert "Ignored 2 invalid CSV rows" in caplog.text
+    assert f"Ignored {ignored_rows} invalid CSV rows" in caplog.text
