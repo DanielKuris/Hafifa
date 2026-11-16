@@ -22,7 +22,7 @@ def service(repository: MagicMock) -> AlertService:
 
 
 
-@allure.story("Alert Retrieval")
+@allure.story("Alert Retrieval Using")
 @allure.title("Retrieve alerts using city and date filters")
 def test_get_alerts_with_filters(
     service: AlertService,

@@ -126,12 +126,12 @@ def test_logs_ignored_rows(
     ],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    ignored_rows = 2
+    arbitrary_ignored_rows = 2
 
     monkeypatch.setattr(
         processor,
         "validate_dataframe",
-        lambda dataframe: (dataframe, ignored_rows),
+        lambda dataframe: (dataframe, arbitrary_ignored_rows),
     )
     monkeypatch.setattr(processor, "calculate_aqi", mock_calculate_aqi)
 
@@ -140,4 +140,4 @@ def test_logs_ignored_rows(
     with caplog.at_level(logging.INFO, logger=processor.__name__):
         processor.read_csv_and_prepare_measurements(BytesIO(csv_content))
 
-    assert f"Ignored {ignored_rows} invalid CSV rows" in caplog.text
+    assert f"Ignored {arbitrary_ignored_rows} invalid CSV rows" in caplog.text

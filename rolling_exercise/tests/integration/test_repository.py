@@ -1,11 +1,7 @@
-
-from datetime import date
-
 import allure
 import pandas as pd
 import pytest
 
-from config.settings import settings
 from data.repository import AirQualityRepository
 
 
@@ -30,33 +26,25 @@ def test_insert_measurements(
 def test_insert_alerts(
     repository: AirQualityRepository,
     measurement_dataframe: pd.DataFrame,
+    alert_measurements: pd.DataFrame,
 ) -> None:
     measurement_ids = repository.insert_measurements(measurement_dataframe)
 
-    alert_dataframe = pd.DataFrame(
-        [
-            {
-                "date": record["date"],
-                "city": record["city"],
-                "aqi": record["aqi"],
-                "measurement_id": measurement_id,
-            }
-            for record, measurement_id in zip(
-                measurement_dataframe.to_dict(orient="records"),
-                measurement_ids,
-                strict=True,
-            )
-            if record["aqi"] > settings.AQI_ALERT_THRESHOLD
-        ]
+    measurement_ids_by_index = dict(
+        zip(measurement_dataframe.index, measurement_ids, strict=True)
     )
 
-    repository.insert_alerts(alert_dataframe)
+    alerts_dataframe = alert_measurements.assign(
+        measurement_id=alert_measurements.index.map(measurement_ids_by_index)
+    )
+
+    repository.insert_alerts(alerts_dataframe)
     alerts = repository.get_alerts()
 
-    assert len(alerts) == len(alert_dataframe)
-    assert {alert.measurement.id for alert in alerts} == set(
-        alert_dataframe["measurement_id"]
-    )
+    assert len(alerts) == len(alerts_dataframe)
+    assert {
+        alert.measurement.id for alert in alerts
+    } == set(alerts_dataframe["measurement_id"])
 
 
 @allure.story("Retrieve Measurements")
@@ -77,54 +65,89 @@ def test_get_measurements(
 @allure.title("Retrieve measurements using city and date filters")
 def test_get_measurements_with_filters(
     populated_repository: AirQualityRepository,
+    measurement_dataframe: pd.DataFrame,
 ) -> None:
+    city = measurement_dataframe["city"].iloc[0]
+    city_measurements = measurement_dataframe.loc[
+        measurement_dataframe["city"] == city
+    ]
+
+    start_date = city_measurements["date"].min()
+    end_date = city_measurements["date"].max()
+
+    expected_measurements = city_measurements.loc[
+        city_measurements["date"].between(start_date, end_date)
+    ]
+
     measurements = populated_repository.get_measurements(
-        city="Amsterdam",
-        start_date=date(2025, 1, 2),
-        end_date=date(2025, 1, 3),
+        city=city,
+        start_date=start_date,
+        end_date=end_date,
     )
 
-    assert len(measurements) == 3
-    assert {measurement.city for measurement in measurements} == {"Amsterdam"}
-    assert [measurement.date for measurement in measurements] == [
-        date(2025, 1, 2),
-        date(2025, 1, 3),
-        date(2025, 1, 3),
-    ]
+    assert len(measurements) == len(expected_measurements)
+    assert {
+        (measurement.date, measurement.city)
+        for measurement in measurements
+    } == {
+        (row.date, row.city)
+        for row in expected_measurements.itertuples()
+    }
 
 
 @allure.story("Calculate City Average")
 @allure.title("Calculate the average AQI for a city")
 def test_get_city_average_aqi(
     populated_repository: AirQualityRepository,
+    measurement_dataframe: pd.DataFrame,
 ) -> None:
-    average_aqi = populated_repository.get_city_average_aqi("Amsterdam")
+    city = measurement_dataframe["city"].iloc[0]
+    expected_average = measurement_dataframe.loc[
+        measurement_dataframe["city"] == city,
+        "aqi",
+    ].mean()
 
-    assert average_aqi == pytest.approx(70 / 3)
+    average_aqi = populated_repository.get_city_average_aqi(city)
+
+    assert average_aqi == pytest.approx(expected_average)
 
 
 @allure.story("Calculate City Average")
 @allure.title("Return None when a city has no measurements")
 def test_get_city_average_aqi_without_measurements(
     repository: AirQualityRepository,
+    measurement_dataframe: pd.DataFrame,
 ) -> None:
-    assert repository.get_city_average_aqi("Amsterdam") is None
+    existing_cities = set(measurement_dataframe["city"])
+    nonexistent_city = next(
+        city
+        for city in ("Nonexistent City",)
+        if city not in existing_cities
+    )
+
+    assert repository.get_city_average_aqi(nonexistent_city) is None
 
 
 @allure.story("Rank Cities")
 @allure.title("Retrieve cities ranked by average AQI")
 def test_get_best_cities(
     populated_repository: AirQualityRepository,
+    measurement_dataframe: pd.DataFrame,
 ) -> None:
-    best_cities = populated_repository.get_best_cities(limit=3)
+    limit = measurement_dataframe["city"].nunique() - 2
 
-    assert [city for city, _ in best_cities] == [
-        "Amsterdam",
-        "Berlin",
-        "Cairo",
-    ]
+    expected_cities = (
+        measurement_dataframe.groupby("city")["aqi"]
+        .mean()
+        .sort_values()
+        .head(limit)
+    )
+
+    best_cities = populated_repository.get_best_cities(limit=limit)
+
+    assert [city for city, _ in best_cities] == expected_cities.index.tolist()
     assert [average for _, average in best_cities] == pytest.approx(
-        [70 / 3, 30, 65]
+        expected_cities.tolist()
     )
 
 
@@ -139,30 +162,38 @@ def test_get_best_cities_without_measurements(
 @allure.story("Retrieve Alerts")
 @allure.title("Retrieve all alerts ordered by date")
 def test_get_alerts(
-    populated_repository_with_alerts: AirQualityRepository,
+    populated_database_with_alerts: None,
+    repository: AirQualityRepository,
+    alert_measurements: pd.DataFrame,
 ) -> None:
-    alerts = populated_repository_with_alerts.get_alerts()
+    alerts = repository.get_alerts()
 
-    assert len(alerts) == 4
-    assert [alert.date for alert in alerts] == [
-        date(2025, 1, 5),
-        date(2025, 1, 5),
-        date(2025, 1, 7),
-        date(2025, 1, 7),
-    ]
-    assert {alert.city for alert in alerts} == {"Delhi", "Mumbai"}
+    assert len(alerts) == len(alert_measurements)
+    assert sorted(
+        (alert.date, alert.city, alert.aqi) for alert in alerts
+    ) == sorted(
+        (row.date, row.city, row.aqi)
+        for row in alert_measurements.itertuples()
+    )
 
 
 @allure.story("Retrieve Alerts")
 @allure.title("Retrieve alerts using city and date filters")
 def test_get_alerts_with_filters(
-    populated_repository_with_alerts: AirQualityRepository,
+    populated_database_with_alerts: None,
+    repository: AirQualityRepository,
+    alert_measurements: pd.DataFrame,
 ) -> None:
-    alerts = populated_repository_with_alerts.get_alerts(
-        city="Mumbai",
-        alert_date=date(2025, 1, 7),
-    )
+    first_alert = alert_measurements.iloc[0]
+    city = first_alert["city"]
+    alert_date = first_alert["date"]
 
-    assert len(alerts) == 2
-    assert {alert.city for alert in alerts} == {"Mumbai"}
-    assert {alert.date for alert in alerts} == {date(2025, 1, 7)}
+    expected_alerts = alert_measurements.loc[
+        (alert_measurements["city"] == city)
+        & (alert_measurements["date"] == alert_date)
+    ]
+
+    alerts = repository.get_alerts(
+        city=city,
+        alert_date=alert_date,
+    )

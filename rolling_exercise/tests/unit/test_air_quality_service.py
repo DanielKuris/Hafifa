@@ -35,41 +35,38 @@ def service(
     return AirQualityService(mock_repository, mock_session)
 
 
-def prepare_alerts_dataframe(measurement_dataframe: pd.DataFrame) -> pd.DataFrame:
-    return measurement_dataframe.loc[
-        measurement_dataframe["aqi"] > settings.AQI_ALERT_THRESHOLD,
-        ["date", "city", "aqi"],
-    ]
-
-
 @allure.story("CSV Upload")
 @allure.title("Upload measurements and create alerts")
 def test_upload_air_quality_data(
     monkeypatch: pytest.MonkeyPatch,
+    alert_measurements: pd.DataFrame,
     service: AirQualityService,
     mock_repository: MagicMock,
     mock_session: MagicMock,
     measurement_dataframe: pd.DataFrame,
 ) -> None:
-    alerts_dataframe = prepare_alerts_dataframe(measurement_dataframe)
-    ignored_rows = 0
+    arbitrary_ignored_rows = 2
     measurement_ids = list(
         range(101, 101 + len(measurement_dataframe))
     )
 
     monkeypatch.setattr(
         "logic.air_quality_service.read_csv_and_prepare_measurements",
-        lambda file: (measurement_dataframe, alerts_dataframe, ignored_rows),
+        lambda file: (
+            measurement_dataframe,
+            alert_measurements,
+            arbitrary_ignored_rows,
+        ),
     )
     mock_repository.insert_measurements.return_value = measurement_ids
 
     response = service.upload_air_quality_data(MagicMock())
 
     assert response == AirQualityUploadResponse(
-        total_rows=len(measurement_dataframe) + ignored_rows,
+        total_rows=len(measurement_dataframe) + arbitrary_ignored_rows,
         inserted_rows=len(measurement_dataframe),
-        ignored_rows=ignored_rows,
-        alerts_created=len(alerts_dataframe),
+        ignored_rows=arbitrary_ignored_rows,
+        alerts_created=len(alert_measurements),
     )
 
     mock_repository.insert_measurements.assert_called_once_with(
@@ -77,8 +74,8 @@ def test_upload_air_quality_data(
     )
 
     expected_ids = dict(zip(measurement_dataframe.index, measurement_ids))
-    expected_alerts = alerts_dataframe.assign(
-        measurement_id=alerts_dataframe.index.map(expected_ids)
+    expected_alerts = alert_measurements.assign(
+        measurement_id=alert_measurements.index.map(expected_ids)
     )
 
     inserted_alerts = mock_repository.insert_alerts.call_args.args[0]
@@ -123,11 +120,11 @@ def test_upload_air_quality_data_logs_summary(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     alerts_dataframe = measurement_dataframe.iloc[0:0][["date", "city", "aqi"]]
-    ignored_rows = 0
+    arbitrary_ignored_rows = 2
 
     monkeypatch.setattr(
         "logic.air_quality_service.read_csv_and_prepare_measurements",
-        lambda file: (measurement_dataframe, alerts_dataframe, ignored_rows),
+        lambda file: (measurement_dataframe, alerts_dataframe, arbitrary_ignored_rows),
     )
     mock_repository.insert_measurements.return_value = list(
         range(101, 101 + len(measurement_dataframe))
@@ -137,9 +134,9 @@ def test_upload_air_quality_data_logs_summary(
         service.upload_air_quality_data(MagicMock())
 
     assert (
-        f"Processed {len(measurement_dataframe) + ignored_rows} CSV rows: "
+        f"Processed {len(measurement_dataframe) + arbitrary_ignored_rows} CSV rows: "
         f"inserted {len(measurement_dataframe)} measurements, "
-        f"ignored {ignored_rows} rows, created 0 alerts"
+        f"ignored {arbitrary_ignored_rows} rows, created 0 alerts"
     ) in caplog.text
 
 
@@ -263,16 +260,15 @@ def test_get_best_cities_without_records(
 @allure.title("Roll back the database transaction when alert insertion fails")
 def test_upload_air_quality_data_rolls_back_on_alert_insertion_failure(
     monkeypatch: pytest.MonkeyPatch,
+    alert_measurements: pd.DataFrame,
     service: AirQualityService,
     mock_repository: MagicMock,
     mock_session: MagicMock,
     measurement_dataframe: pd.DataFrame,
 ) -> None:
-    alerts_dataframe = prepare_alerts_dataframe(measurement_dataframe)
-
     monkeypatch.setattr(
         "logic.air_quality_service.read_csv_and_prepare_measurements",
-        lambda file: (measurement_dataframe, alerts_dataframe, 0),
+        lambda file: (measurement_dataframe, alert_measurements, 0),
     )
 
     mock_repository.insert_measurements.return_value = list(
