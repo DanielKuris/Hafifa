@@ -68,9 +68,7 @@ def test_get_measurements_with_filters(
     measurement_dataframe: pd.DataFrame,
 ) -> None:
     city = measurement_dataframe["city"].iloc[0]
-    city_measurements = measurement_dataframe.loc[
-        measurement_dataframe["city"] == city
-    ]
+    city_measurements = measurement_dataframe.loc[measurement_dataframe["city"] == city]
 
     start_date = city_measurements["date"].min()
     end_date = city_measurements["date"].max()
