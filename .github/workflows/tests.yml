@@ -13,6 +13,10 @@ jobs:
     name: Lint, Format and Test
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: rolling_exercise
+
     services:
       postgres:
         image: postgres:18
