@@ -42,3 +42,6 @@ addopts = [
 
 [tool.ruff.lint]
 ignore = ["B008", "F821"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/conftest.py" = ["F401"]
