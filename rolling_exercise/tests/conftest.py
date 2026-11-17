@@ -1,11 +1,11 @@
 from tests.fixtures.data import (
-    measurements_that_would_produce_alerts,
     csv_dataframe,
     measurement_dataframe,
     measurement_dataframe_with_duplicates,
+    measurements_that_would_produce_alerts,
+    populated_database_with_alerts,
     populated_repository,
     sample_csv,
-    populated_database_with_alerts,
 )
 from tests.fixtures.dependencies import (
     air_quality_service,
