@@ -514,6 +514,7 @@ dev = [
     { name = "allure-pytest" },
     { name = "pygments" },
     { name = "pytest" },
+    { name = "ruff" },
 ]
 
 [package.metadata]
@@ -536,6 +537,7 @@ dev = [
     { name = "allure-pytest", specifier = "==2.16.2" },
     { name = "pygments", specifier = "==2.21.0" },
     { name = "pytest", specifier = "==9.2.0" },
+    { name = "ruff", specifier = "==0.17.4" },
 ]
 
 [[package]]
