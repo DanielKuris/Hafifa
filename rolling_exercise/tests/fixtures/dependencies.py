@@ -1,6 +1,7 @@
 from collections.abc import Generator
 
 import allure
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine, make_url
@@ -9,11 +10,11 @@ from sqlalchemy.orm import Session
 from api.dependencies import get_session
 from config.settings import settings
 from data.repository import AirQualityRepository
-from logic.alert_query_service import AlertService
 from logic.air_quality_service import AirQualityService
+from logic.alert_query_service import AlertService
 from main import app
 from tests.fixtures.constants import TEST_DATABASE_NAME
-import pytest
+
 
 @pytest.fixture(scope="session")
 @allure.title("Create test database engine")
@@ -25,9 +26,7 @@ def test_engine() -> Generator[Engine]:
     database_name = make_url(database_url).database
 
     if database_name != TEST_DATABASE_NAME:
-        raise RuntimeError(
-            f"Refusing to run tests against database: {database_name}"
-        )
+        raise RuntimeError(f"Refusing to run tests against database: {database_name}")
 
     engine = create_engine(
         database_url,

@@ -10,6 +10,7 @@ from tests.fixtures.constants import (
     MISSING_CITY,
 )
 
+
 @allure.story("Measurements")
 @allure.title("Retrieve all uploaded measurements")
 def test_read_measurements(
@@ -109,8 +110,7 @@ def test_read_measurements_with_combined_filters(
     assert response.status_code == HTTP_OK
     assert len(measurements) == len(expected_measurements)
     assert all(
-        measurement["city"] == city
-        and measurement["date"] == measurement_date
+        measurement["city"] == city and measurement["date"] == measurement_date
         for measurement in measurements
     )
 

@@ -1,4 +1,3 @@
-
 import logging
 from datetime import date, timedelta
 
@@ -100,9 +99,7 @@ def test_validate_dataframe_unexpected_column(
 def test_validate_dataframe_missing_and_unexpected_columns(
     csv_dataframe: pd.DataFrame,
 ) -> None:
-    dataframe = csv_dataframe.drop(columns=["PM2.5"]).assign(
-        temperature=20
-    )
+    dataframe = csv_dataframe.drop(columns=["PM2.5"]).assign(temperature=20)
 
     with pytest.raises(ColumnsMismatchError) as exc_info:
         validate_dataframe(dataframe)
@@ -140,9 +137,7 @@ def test_validate_dataframe_future_dates(
     csv_dataframe: pd.DataFrame,
 ) -> None:
     dataframe = csv_dataframe.copy()
-    dataframe.loc[0, "date"] = (
-        date.today() + timedelta(days=1)
-    ).isoformat()
+    dataframe.loc[0, "date"] = (date.today() + timedelta(days=1)).isoformat()
 
     result, ignored_rows = validate_dataframe(dataframe)
 

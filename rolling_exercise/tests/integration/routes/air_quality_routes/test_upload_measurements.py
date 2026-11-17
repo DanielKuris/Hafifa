@@ -1,11 +1,11 @@
 import allure
 import pandas as pd
-import pytest
 from fastapi.testclient import TestClient
 
 from tests.fixtures.constants import (
     HTTP_OK,
 )
+
 
 @allure.story("CSV Upload")
 @allure.title("Upload CSV and return the upload summary")

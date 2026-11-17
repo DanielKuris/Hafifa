@@ -16,9 +16,7 @@ def test_insert_measurements(
 
     assert len(measurement_ids) == len(measurement_dataframe)
     assert len(measurements) == len(measurement_dataframe)
-    assert {measurement.id for measurement in measurements} == set(
-        measurement_ids
-    )
+    assert {measurement.id for measurement in measurements} == set(measurement_ids)
 
 
 @allure.story("Insert Alerts")
@@ -26,7 +24,7 @@ def test_insert_measurements(
 def test_insert_alerts(
     repository: AirQualityRepository,
     measurement_dataframe: pd.DataFrame,
-    alert_measurements: pd.DataFrame,
+    measurements_that_would_produce_alerts: pd.DataFrame,
 ) -> None:
     measurement_ids = repository.insert_measurements(measurement_dataframe)
 
@@ -34,17 +32,19 @@ def test_insert_alerts(
         zip(measurement_dataframe.index, measurement_ids, strict=True)
     )
 
-    alerts_dataframe = alert_measurements.assign(
-        measurement_id=alert_measurements.index.map(measurement_ids_by_index)
+    alerts_dataframe = measurements_that_would_produce_alerts.assign(
+        measurement_id=measurements_that_would_produce_alerts.index.map(
+            measurement_ids_by_index
+        )
     )
 
     repository.insert_alerts(alerts_dataframe)
     alerts = repository.get_alerts()
 
     assert len(alerts) == len(alerts_dataframe)
-    assert {
-        alert.measurement.id for alert in alerts
-    } == set(alerts_dataframe["measurement_id"])
+    assert {alert.measurement.id for alert in alerts} == set(
+        alerts_dataframe["measurement_id"]
+    )
 
 
 @allure.story("Retrieve Measurements")
@@ -86,12 +86,8 @@ def test_get_measurements_with_filters(
     )
 
     assert len(measurements) == len(expected_measurements)
-    assert {
-        (measurement.date, measurement.city)
-        for measurement in measurements
-    } == {
-        (row.date, row.city)
-        for row in expected_measurements.itertuples()
+    assert {(measurement.date, measurement.city) for measurement in measurements} == {
+        (row.date, row.city) for row in expected_measurements.itertuples()
     }
 
 
@@ -120,9 +116,7 @@ def test_get_city_average_aqi_without_measurements(
 ) -> None:
     existing_cities = set(measurement_dataframe["city"])
     nonexistent_city = next(
-        city
-        for city in ("Nonexistent City",)
-        if city not in existing_cities
+        city for city in ("Nonexistent City",) if city not in existing_cities
     )
 
     assert repository.get_city_average_aqi(nonexistent_city) is None
@@ -137,10 +131,7 @@ def test_get_best_cities(
     limit = measurement_dataframe["city"].nunique() - 2
 
     expected_cities = (
-        measurement_dataframe.groupby("city")["aqi"]
-        .mean()
-        .sort_values()
-        .head(limit)
+        measurement_dataframe.groupby("city")["aqi"].mean().sort_values().head(limit)
     )
 
     best_cities = populated_repository.get_best_cities(limit=limit)
@@ -164,16 +155,14 @@ def test_get_best_cities_without_measurements(
 def test_get_alerts(
     populated_database_with_alerts: None,
     repository: AirQualityRepository,
-    alert_measurements: pd.DataFrame,
+    measurements_that_would_produce_alerts: pd.DataFrame,
 ) -> None:
     alerts = repository.get_alerts()
 
-    assert len(alerts) == len(alert_measurements)
-    assert sorted(
-        (alert.date, alert.city, alert.aqi) for alert in alerts
-    ) == sorted(
+    assert len(alerts) == len(measurements_that_would_produce_alerts)
+    assert sorted((alert.date, alert.city, alert.aqi) for alert in alerts) == sorted(
         (row.date, row.city, row.aqi)
-        for row in alert_measurements.itertuples()
+        for row in measurements_that_would_produce_alerts.itertuples()
     )
 
 
@@ -182,18 +171,23 @@ def test_get_alerts(
 def test_get_alerts_with_filters(
     populated_database_with_alerts: None,
     repository: AirQualityRepository,
-    alert_measurements: pd.DataFrame,
+    measurements_that_would_produce_alerts: pd.DataFrame,
 ) -> None:
-    first_alert = alert_measurements.iloc[0]
+    first_alert = measurements_that_would_produce_alerts.iloc[0]
     city = first_alert["city"]
     alert_date = first_alert["date"]
 
-    expected_alerts = alert_measurements.loc[
-        (alert_measurements["city"] == city)
-        & (alert_measurements["date"] == alert_date)
+    expected_alerts = measurements_that_would_produce_alerts.loc[
+        (measurements_that_would_produce_alerts["city"] == city)
+        & (measurements_that_would_produce_alerts["date"] == alert_date)
     ]
 
     alerts = repository.get_alerts(
         city=city,
         alert_date=alert_date,
     )
+
+    assert len(alerts) == len(expected_alerts)
+    assert {(alert.date, alert.city, alert.aqi) for alert in alerts} == {
+        (row.date, row.city, row.aqi) for row in expected_alerts.itertuples()
+    }

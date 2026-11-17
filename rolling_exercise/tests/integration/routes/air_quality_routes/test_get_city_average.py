@@ -9,6 +9,7 @@ from tests.fixtures.constants import (
     MISSING_CITY,
 )
 
+
 @allure.story("City Average")
 @allure.title("Calculate a city's average AQI")
 def test_read_city_average_aqi(

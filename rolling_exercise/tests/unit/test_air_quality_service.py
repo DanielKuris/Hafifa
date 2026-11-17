@@ -1,4 +1,3 @@
-
 import logging
 from unittest.mock import MagicMock
 
@@ -6,7 +5,6 @@ import allure
 import pandas as pd
 import pytest
 
-from config.settings import settings
 from data.repository import AirQualityRepository
 from database.models.air_quality import AirQuality
 from logic.air_quality_service import AirQualityService
@@ -39,22 +37,20 @@ def service(
 @allure.title("Upload measurements and create alerts")
 def test_upload_air_quality_data(
     monkeypatch: pytest.MonkeyPatch,
-    alert_measurements: pd.DataFrame,
+    measurements_that_would_produce_alerts: pd.DataFrame,
     service: AirQualityService,
     mock_repository: MagicMock,
     mock_session: MagicMock,
     measurement_dataframe: pd.DataFrame,
 ) -> None:
     arbitrary_ignored_rows = 2
-    measurement_ids = list(
-        range(101, 101 + len(measurement_dataframe))
-    )
+    measurement_ids = list(range(101, 101 + len(measurement_dataframe)))
 
     monkeypatch.setattr(
         "logic.air_quality_service.read_csv_and_prepare_measurements",
         lambda file: (
             measurement_dataframe,
-            alert_measurements,
+            measurements_that_would_produce_alerts,
             arbitrary_ignored_rows,
         ),
     )
@@ -66,16 +62,14 @@ def test_upload_air_quality_data(
         total_rows=len(measurement_dataframe) + arbitrary_ignored_rows,
         inserted_rows=len(measurement_dataframe),
         ignored_rows=arbitrary_ignored_rows,
-        alerts_created=len(alert_measurements),
+        alerts_created=len(measurements_that_would_produce_alerts),
     )
 
-    mock_repository.insert_measurements.assert_called_once_with(
-        measurement_dataframe
-    )
+    mock_repository.insert_measurements.assert_called_once_with(measurement_dataframe)
 
     expected_ids = dict(zip(measurement_dataframe.index, measurement_ids))
-    expected_alerts = alert_measurements.assign(
-        measurement_id=alert_measurements.index.map(expected_ids)
+    expected_alerts = measurements_that_would_produce_alerts.assign(
+        measurement_id=measurements_that_would_produce_alerts.index.map(expected_ids)
     )
 
     inserted_alerts = mock_repository.insert_alerts.call_args.args[0]
@@ -260,7 +254,7 @@ def test_get_best_cities_without_records(
 @allure.title("Roll back the database transaction when alert insertion fails")
 def test_upload_air_quality_data_rolls_back_on_alert_insertion_failure(
     monkeypatch: pytest.MonkeyPatch,
-    alert_measurements: pd.DataFrame,
+    measurements_that_would_produce_alerts: pd.DataFrame,
     service: AirQualityService,
     mock_repository: MagicMock,
     mock_session: MagicMock,
@@ -268,15 +262,13 @@ def test_upload_air_quality_data_rolls_back_on_alert_insertion_failure(
 ) -> None:
     monkeypatch.setattr(
         "logic.air_quality_service.read_csv_and_prepare_measurements",
-        lambda file: (measurement_dataframe, alert_measurements, 0),
+        lambda file: (measurement_dataframe, measurements_that_would_produce_alerts, 0),
     )
 
     mock_repository.insert_measurements.return_value = list(
         range(101, 101 + len(measurement_dataframe))
     )
-    mock_repository.insert_alerts.side_effect = RuntimeError(
-        "Alert insertion failed"
-    )
+    mock_repository.insert_alerts.side_effect = RuntimeError("Alert insertion failed")
 
     with pytest.raises(RuntimeError, match="Alert insertion failed"):
         service.upload_air_quality_data(MagicMock())

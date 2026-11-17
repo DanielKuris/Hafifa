@@ -14,8 +14,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from data.repository import AirQualityRepository
-from logic.alert_query_service import AlertService
 from logic.air_quality_service import AirQualityService
+from logic.alert_query_service import AlertService
 
 
 def format_fixture_value(value: object) -> str | None:
@@ -42,7 +42,7 @@ def format_fixture_value(value: object) -> str | None:
 def attach_test_details(request: pytest.FixtureRequest) -> Generator[None]:
     try:
         source = inspect.getsource(request.function)
-    except (OSError, TypeError):
+    except OSError, TypeError:
         source = None
 
     if source is not None:

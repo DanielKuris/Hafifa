@@ -7,6 +7,7 @@ from tests.fixtures.constants import (
     MISSING_CITY,
 )
 
+
 @allure.story("City History")
 @allure.title("Retrieve a city's air quality history")
 def test_read_city_aqi_history(

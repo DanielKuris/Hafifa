@@ -21,7 +21,6 @@ def service(repository: MagicMock) -> AlertService:
     return AlertService(repository)
 
 
-
 @allure.story("Alert Retrieval Using")
 @allure.title("Retrieve alerts using city and date filters")
 def test_get_alerts_with_filters(
@@ -44,7 +43,6 @@ def test_get_alerts_with_filters(
         city="Tel Aviv",
         alert_date=alert_date,
     )
-
 
 
 @allure.story("Alert Retrieval")

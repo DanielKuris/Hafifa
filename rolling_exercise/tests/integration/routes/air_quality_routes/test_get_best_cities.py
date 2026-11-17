@@ -10,6 +10,7 @@ from tests.fixtures.constants import (
     HTTP_UNPROCESSABLE_ENTITY,
 )
 
+
 @allure.story("Best Cities")
 @allure.title("Retrieve cities ranked by average AQI")
 def test_read_best_cities(
@@ -28,9 +29,7 @@ def test_read_best_cities(
     actual_cities = response.json()
 
     assert response.status_code == HTTP_OK
-    assert [city["city"] for city in actual_cities] == list(
-        expected_cities.index
-    )
+    assert [city["city"] for city in actual_cities] == list(expected_cities.index)
 
     for actual, expected_average in zip(
         actual_cities,

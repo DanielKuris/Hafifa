@@ -1,9 +1,9 @@
-
 from datetime import timedelta
 
 import allure
 import pandas as pd
 from fastapi.testclient import TestClient
+
 from tests.fixtures.constants import (
     ALERT_FIELDS,
     HTTP_OK,
@@ -17,25 +17,25 @@ from tests.fixtures.constants import (
 def test_read_alerts(
     client: TestClient,
     populated_database_with_alerts: None,
-    alert_measurements: pd.DataFrame,
+    measurements_that_would_produce_alerts: pd.DataFrame,
 ) -> None:
-    alert_measurements_fields = ALERT_FIELDS - {'id'}
-    expected_alerts = alert_measurements.to_dict(orient="records")
+    measurements_that_would_produce_alerts_fields = ALERT_FIELDS - {"id"}
+    expected_alerts = measurements_that_would_produce_alerts.to_dict(orient="records")
 
     response = client.get("/alerts/")
     alerts = response.json()
 
     assert response.status_code == HTTP_OK
     assert len(alerts) == len(expected_alerts)
-    assert alert_measurements_fields.issubset(alerts[0])
+    assert measurements_that_would_produce_alerts_fields.issubset(alerts[0])
 
     assert sorted(
-        tuple(alert[field] for field in alert_measurements_fields)
+        tuple(alert[field] for field in measurements_that_would_produce_alerts_fields)
         for alert in alerts
     ) == sorted(
         tuple(
             str(alert[field]) if field == "date" else alert[field]
-            for field in alert_measurements_fields
+            for field in measurements_that_would_produce_alerts_fields
         )
         for alert in expected_alerts
     )
@@ -57,21 +57,19 @@ def test_read_alerts_without_records(
 def test_read_alerts_by_date(
     client: TestClient,
     populated_database_with_alerts: None,
-    alert_measurements: pd.DataFrame,
+    measurements_that_would_produce_alerts: pd.DataFrame,
 ) -> None:
-    assert not alert_measurements.empty, (
+    assert not measurements_that_would_produce_alerts.empty, (
         "Test requires at least one alert measurement"
     )
 
-    alert_date = alert_measurements["date"].iloc[0]
+    alert_date = measurements_that_would_produce_alerts["date"].iloc[0]
 
-    expected_alerts = alert_measurements.loc[
-        alert_measurements["date"] == alert_date
+    expected_alerts = measurements_that_would_produce_alerts.loc[
+        measurements_that_would_produce_alerts["date"] == alert_date
     ]
 
-    response = client.get(
-        f"/alerts/by-date/{alert_date.isoformat()}"
-    )
+    response = client.get(f"/alerts/by-date/{alert_date.isoformat()}")
     alerts = response.json()
 
     assert response.status_code == HTTP_OK
@@ -84,17 +82,17 @@ def test_read_alerts_by_date(
 def test_read_alerts_by_date_without_matches(
     client: TestClient,
     populated_database_with_alerts: None,
-    alert_measurements: pd.DataFrame,
+    measurements_that_would_produce_alerts: pd.DataFrame,
 ) -> None:
-    assert not alert_measurements.empty, (
+    assert not measurements_that_would_produce_alerts.empty, (
         "Test requires at least one alert measurement"
     )
 
-    missing_date = alert_measurements["date"].max() + timedelta(days=1)
-
-    response = client.get(
-        f"/alerts/by-date/{missing_date.isoformat()}"
+    missing_date = measurements_that_would_produce_alerts["date"].max() + timedelta(
+        days=1
     )
+
+    response = client.get(f"/alerts/by-date/{missing_date.isoformat()}")
 
     assert response.status_code == HTTP_OK
     assert response.json() == []
@@ -115,16 +113,16 @@ def test_read_alerts_by_invalid_date(
 def test_read_alerts_by_city(
     client: TestClient,
     populated_database_with_alerts: None,
-    alert_measurements: pd.DataFrame,
+    measurements_that_would_produce_alerts: pd.DataFrame,
 ) -> None:
-    assert not alert_measurements.empty, (
+    assert not measurements_that_would_produce_alerts.empty, (
         "Test requires at least one alert measurement"
     )
 
-    city = alert_measurements["city"].iloc[0]
+    city = measurements_that_would_produce_alerts["city"].iloc[0]
 
-    expected_alerts = alert_measurements.loc[
-        alert_measurements["city"] == city
+    expected_alerts = measurements_that_would_produce_alerts.loc[
+        measurements_that_would_produce_alerts["city"] == city
     ]
 
     response = client.get(f"/alerts/by-city/{city}")

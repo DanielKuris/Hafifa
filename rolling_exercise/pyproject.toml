@@ -30,6 +30,9 @@ add-bounds = "exact"
 [tool.pytest.ini_options]
 pythonpath = [".", "src"]
 testpaths = ["tests"]
+markers = [
+    "integration: marks integration tests",
+]
 addopts = [
     "--import-mode=importlib",
     "--alluredir=tests/allure-results",
